@@ -122,6 +122,8 @@ export default async function queryDataSetData(
     indicator.name.toString()
   );
 
+  db.close();
+
   return {
     _links: {
       self: {
