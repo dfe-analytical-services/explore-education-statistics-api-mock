@@ -3,16 +3,16 @@ import compression from 'compression';
 import express, { ErrorRequestHandler, Request, Response } from 'express';
 import * as OpenApiValidator from 'express-openapi-validator';
 import path from 'path';
-import { allDataSets, spcDataSets } from '../mocks/dataSets';
-import { publications, spcPublication } from '../mocks/publications';
-import { ApiErrorViewModel } from '../schema';
-import { dataSetDirs } from '../utils/getDataSetDir';
-import getDataSetMeta from '../utils/getDataSetMeta';
-import normalizeApiErrors from '../utils/normalizeApiErrors';
-import paginateResults from '../utils/paginateResults';
-import queryDataSetData from '../utils/queryDataSetData';
+import { allDataSets, spcDataSets } from './mocks/dataSets';
+import { publications, spcPublication } from './mocks/publications';
+import { ApiErrorViewModel } from './schema';
+import { dataSetDirs } from './utils/getDataSetDir';
+import getDataSetMeta from './utils/getDataSetMeta';
+import normalizeApiErrors from './utils/normalizeApiErrors';
+import paginateResults from './utils/paginateResults';
+import queryDataSetData from './utils/queryDataSetData';
 
-const apiSpec = path.resolve(__dirname, '../openapi.yaml');
+const apiSpec = path.resolve(__dirname, './openapi.yaml');
 
 const app = express();
 
@@ -108,7 +108,7 @@ const errorHandler: ErrorRequestHandler = (err, req, res, _) => {
 
 app.use(errorHandler);
 
-const port = 3000;
+const port = process.env.PORT || 8080;
 
 app.listen(port, () => console.log(`Server is running on port ${port}`));
 

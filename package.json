@@ -5,7 +5,8 @@
   "scripts": {
     "build": "swc src -d build --copy-files",
     "import": "ts-node --transpile-only src/scripts/import.ts",
-    "start": "ts-node-dev -r tsconfig-paths/register --respawn --transpile-only src/api",
+    "start": "ts-node-dev -r tsconfig-paths/register --respawn --transpile-only src/server.ts",
+    "start:prod": "node build/server.js",
     "schema": "openapi --input src/openapi.yaml --output src/schema --useUnionTypes --exportServices false --exportCore false",
     "tsc": "tsc --noEmit"
   },
