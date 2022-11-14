@@ -2,6 +2,8 @@
   "name": "ees-public-api-mock",
   "version": "1.0.0",
   "description": "",
+  "license": "UNLICENSED",
+  "private": true,
   "scripts": {
     "build": "swc src -d build --copy-files",
     "import": "ts-node --transpile-only src/scripts/import.ts",
@@ -10,8 +12,6 @@
     "schema": "openapi --input src/openapi.yaml --output src/schema --useUnionTypes --exportServices false --exportCore false",
     "tsc": "tsc --noEmit"
   },
-  "author": "",
-  "license": "ISC",
   "type": "commonjs",
   "dependencies": {
     "body-parser": "^1.20.0",
