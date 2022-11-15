@@ -1,5 +1,6 @@
 import Hashids from 'hashids';
 import { compact, groupBy, keyBy, mapValues } from 'lodash';
+import Papa from 'papaparse';
 import { DataSetQuery, DataSetResultsViewModel } from '../schema';
 import { DataRow, Filter, Indicator } from '../types/dbSchemas';
 import Database from './Database';
@@ -26,8 +27,8 @@ interface Result extends DataRow {
 export default async function queryDataSetData(
   dataSetId: string,
   query: DataSetQuery,
-  { debug }: { debug: boolean }
-): Promise<DataSetResultsViewModel> {
+  { debug, formatCsv }: { debug: boolean; formatCsv: boolean }
+): Promise<DataSetResultsViewModel | string> {
   const dataSetDir = getDataSetDir(dataSetId);
 
   const db = new Database();
@@ -80,25 +81,6 @@ export default async function queryDataSetData(
         } ${getFiltersCondition(dataSetDir, groupedFilterItems)}
       `;
 
-  const totalQuery = createQuery(['count(*) as total']);
-  const resultsQuery = `
-    ${createQuery([
-      'data.time_period',
-      'data.time_identifier',
-      'locations.geographic_level',
-      'locations.id AS location_id',
-      ...filterCols.map(
-        (col) =>
-          `${
-            debug ? `concat(${col}.id, '::', ${col}.label)` : `${col}.id`
-          } AS ${col}`
-      ),
-      ...indicators.map((i) => `data."${i.name}"`),
-    ])}
-    LIMIT ?
-    OFFSET ?
-  `;
-
   // Tried cursor/keyset pagination, but it's probably too difficult to implement.
   // Might need to revisit this in the future if performance is an issue.
   // - Ordering is a real headache as we'd need to perform struct comparisons across
@@ -122,6 +104,42 @@ export default async function queryDataSetData(
       items.map((item) => item.label)
     ),
   ];
+
+  if (formatCsv) {
+    const query = `
+      ${createQuery(['data.*'])}
+      LIMIT ?
+      OFFSET ?
+    `;
+    const rows = await db.all<DataRow>(query, [
+      ...params,
+      pageSize,
+      pageOffset,
+    ]);
+
+    db.close();
+
+    return Papa.unparse(rows);
+  }
+
+  const totalQuery = createQuery(['count(*) as total']);
+  const resultsQuery = `
+    ${createQuery([
+      'data.time_period',
+      'data.time_identifier',
+      'locations.geographic_level',
+      'locations.id AS location_id',
+      ...filterCols.map(
+        (col) =>
+          `${
+            debug ? `concat(${col}.id, '::', ${col}.label)` : `${col}.id`
+          } AS ${col}`
+      ),
+      ...indicators.map((i) => `data."${i.name}"`),
+    ])}
+    LIMIT ?
+    OFFSET ?
+  `;
 
   const [{ total }, results] = await Promise.all([
     db.first<{ total: number }>(totalQuery, params),

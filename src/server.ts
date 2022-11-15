@@ -78,7 +78,15 @@ app.get('/api/v1/data-sets/:dataSetId/meta', async (req, res) => {
 
 app.post('/api/v1/data-sets/:dataSetId/query', async (req, res) => {
   if (dataSetDirs[req.params.dataSetId]) {
-    return await handleDatabaseDataSetQuery(req, res, req.params.dataSetId);
+    const formatCsv = req.accepts().includes('text/csv');
+    const results = await queryDataSetData(req.params.dataSetId, req.body, {
+      debug: typeof req.query.debug !== 'undefined',
+      formatCsv,
+    });
+
+    res.contentType(formatCsv ? 'text/csv' : 'application/json');
+
+    return res.status(200).send(results);
   }
 
   res.status(404).json(notFoundError());
@@ -120,18 +128,4 @@ function notFoundError(): ApiErrorViewModel {
     type: 'https://datatracker.ietf.org/doc/html/rfc7231#section-6.5.4',
     title: 'Not Found',
   };
-}
-
-async function handleDatabaseDataSetQuery(
-  req: Request,
-  res: Response,
-  dataSetId: string
-) {
-  const results = await queryDataSetData(dataSetId, req.body, {
-    debug: typeof req.query.debug !== 'undefined',
-  });
-
-  // TODO - Implement CSV response
-
-  res.status(200).send(results);
 }
