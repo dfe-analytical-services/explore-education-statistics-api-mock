@@ -35,7 +35,7 @@ export default async function queryDataSetData(
   const { timePeriod, page = 1, pageSize = 100 } = query;
   const locationIds = parseIds(query.locations, locationIdHasher);
   const filterItemIds = parseIds(query.filterItems, filterIdHasher);
-  const indicatorIds = parseIds(query.indicators, indicatorIdHasher);
+  const indicatorIds = parseIdStrings(query.indicators, indicatorIdHasher);
 
   const startCode = timePeriodCodeIdentifiers[timePeriod.startCode];
 
@@ -237,16 +237,19 @@ async function getFilterColumns(
 async function getIndicators(
   db: Database,
   dataSetDir: string,
-  indicatorIds: number[]
+  indicatorIds: string[]
 ): Promise<Indicator[]> {
   if (!indicatorIds.length) {
     return [];
   }
 
+  const idPlaceholders = indicatorIds.map((_, index) => `$${index + 1}`);
+
   return await db.all<Indicator>(
     `SELECT *
      FROM '${tableFile(dataSetDir, 'indicators')}'
-     WHERE id IN (${placeholders(indicatorIds)});`,
+     WHERE id::VARCHAR IN (${idPlaceholders}) 
+        OR name IN (${idPlaceholders});`,
     indicatorIds
   );
 }
@@ -276,6 +279,21 @@ function parseIds(ids: string[], idHasher: Hashids): number[] {
         return idHasher.decode(id)[0] as number;
       } catch (err) {
         return Number.NaN;
+      }
+    })
+  );
+}
+
+function parseIdStrings(ids: string[], idHasher: Hashids): string[] {
+  return compact(
+    ids.map((id) => {
+      try {
+        return idHasher.decode(id)[0].toString();
+      } catch (err) {
+        // If the id is NaN, then allow this as it could be a
+        // code or other identifier that can be used instead.
+        // Plain numbers shouldn't be accepted to avoid
+        return Number.isNaN(Number(id)) ? id : '';
       }
     })
   );

@@ -242,7 +242,7 @@ components:
             format: uuid
         indicators:
           type: array
-          description: The IDs of indicators to filter results by.
+          description: The IDs or names of indicators to filter results by.
           items:
             type: string
             format: uuid
