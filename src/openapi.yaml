@@ -404,11 +404,16 @@ components:
       type: object
       description: All the metadata associated with the data set.
       required:
+        - totalResults
         - filters
         - indicators
         - locations
         - timePeriods
       properties:
+        totalResults:
+          type: number
+          description: The total number of results.
+          minimum: 0
         filters:
           type: array
           description: All the filters associated with the data set.

@@ -30,8 +30,13 @@ export default async function getDataSetMeta(
   const dataSetDir = getDataSetDir(dataSetId);
   const db = new Database();
 
+  const { total } = await db.first<{ total: number }>(
+    `SELECT count(*) as total FROM '${tableFile(dataSetDir, 'data')}';`
+  );
+
   try {
     return {
+      totalResults: total,
       timePeriods: await getTimePeriodsMeta(db, dataSetDir),
       filters: await getFiltersMeta(db, dataSetDir),
       indicators: await getIndicatorsMeta(db, dataSetDir),
