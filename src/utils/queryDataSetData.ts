@@ -4,6 +4,7 @@ import { DataSetQuery, DataSetResultsViewModel } from '../schema';
 import { DataRow, Filter, Indicator } from '../types/dbSchemas';
 import Database from './Database';
 import getDataSetDir from './getDataSetDir';
+import { tableFile } from './dataSetPaths';
 import {
   createFilterIdHasher,
   createIndicatorIdHasher,
@@ -347,11 +348,4 @@ function placeholders(value: unknown[]): string[] {
 
 function indexPlaceholders(value: unknown[]): string[] {
   return value.map((_, index) => `$${index + 1}`);
-}
-
-function tableFile(
-  dataSetDir: string,
-  table: 'data' | 'indicators' | 'filters' | 'time_periods' | 'locations'
-) {
-  return `${dataSetDir}/${table}.parquet`;
 }

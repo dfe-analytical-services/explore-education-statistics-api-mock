@@ -10,6 +10,7 @@ import {
 } from '../schema';
 import { Filter, Indicator, TimePeriod } from '../types/dbSchemas';
 import Database from './Database';
+import { tableFile } from './dataSetPaths';
 import formatTimePeriodLabel from './formatTimePeriodLabel';
 import getDataSetDir from './getDataSetDir';
 import {
@@ -26,15 +27,15 @@ import parseTimePeriodCode from './parseTimePeriodCode';
 export default async function getDataSetMeta(
   dataSetId: string
 ): Promise<DataSetMetaViewModel> {
-  const dataDir = getDataSetDir(dataSetId);
+  const dataSetDir = getDataSetDir(dataSetId);
   const db = new Database();
 
   try {
     return {
-      timePeriods: await getTimePeriodsMeta(db, dataDir),
-      filters: await getFiltersMeta(db, dataDir),
-      indicators: await getIndicatorsMeta(db, dataDir),
-      locations: await getLocationsMeta(db, dataDir),
+      timePeriods: await getTimePeriodsMeta(db, dataSetDir),
+      filters: await getFiltersMeta(db, dataSetDir),
+      indicators: await getIndicatorsMeta(db, dataSetDir),
+      locations: await getLocationsMeta(db, dataSetDir),
     };
   } finally {
     db.close();
@@ -43,11 +44,11 @@ export default async function getDataSetMeta(
 
 async function getTimePeriodsMeta(
   db: Database,
-  dataDir: string
+  dataSetDir: string
 ): Promise<TimePeriodMetaViewModel[]> {
   const timePeriods = await db.all<TimePeriod>(
     `SELECT *
-       FROM '${dataDir}/time_periods.parquet';`
+       FROM '${tableFile(dataSetDir, 'time_periods')}';`
   );
 
   return timePeriods.map((timePeriod) => {
@@ -63,9 +64,9 @@ async function getTimePeriodsMeta(
 
 async function getLocationsMeta(
   db: Database,
-  dataDir: string
+  dataSetDir: string
 ): Promise<Dictionary<LocationMetaViewModel[]>> {
-  const filePath = `${dataDir}/locations.parquet`;
+  const filePath = tableFile(dataSetDir, 'locations');
 
   const levels = (
     await db.all<{ level: string }>(
@@ -120,9 +121,9 @@ async function getLocationsMeta(
 
 async function getFiltersMeta(
   db: Database,
-  dataDir: string
+  dataSetDir: string
 ): Promise<FilterMetaViewModel[]> {
-  const filePath = `${dataDir}/filters.parquet`;
+  const filePath = tableFile(dataSetDir, 'filters');
 
   const groups = await db.all<{ label: string; name: string; hint: string }>(
     `SELECT DISTINCT 
@@ -161,14 +162,12 @@ async function getFiltersMeta(
 
 async function getIndicatorsMeta(
   db: Database,
-  dataDir: string
+  dataSetDir: string
 ): Promise<IndicatorMetaViewModel[]> {
-  const filePath = `${dataDir}/indicators.parquet`;
-
   const hasher = createIndicatorIdHasher();
 
   const indicators = await db.all<Indicator>(
-    `SELECT * FROM '${filePath}' ORDER BY label ASC;`
+    `SELECT * FROM '${tableFile(dataSetDir, 'indicators')}' ORDER BY label ASC;`
   );
 
   return indicators.map((indicator) => {
