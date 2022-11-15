@@ -9,7 +9,10 @@ import {
   createIndicatorIdHasher,
   createLocationIdHasher,
 } from './idHashers';
-import { csvLabelsToGeographicLevels } from './locationConstants';
+import {
+  csvLabelsToGeographicLevels,
+  geographicLevelColumns,
+} from './locationConstants';
 import parseTimePeriodCode from './parseTimePeriodCode';
 import { timePeriodCodeIdentifiers } from './timePeriodConstants';
 
@@ -33,7 +36,6 @@ export default async function queryDataSetData(
   const indicatorIdHasher = createIndicatorIdHasher();
 
   const { timePeriod, page = 1, pageSize = 100 } = query;
-  const locationIds = parseIds(query.locations, locationIdHasher);
   const filterItemIds = parseIds(query.filterItems, filterIdHasher);
   const indicatorIds = parseIdStrings(query.indicators, indicatorIdHasher);
 
@@ -46,6 +48,14 @@ export default async function queryDataSetData(
       getIndicators(db, dataSetDir, indicatorIds),
       getFilterItems(db, dataSetDir, filterItemIds),
     ]
+  );
+
+  const locationIds = await getLocationIds(
+    db,
+    dataSetDir,
+    query,
+    locationCols,
+    locationIdHasher
   );
 
   const groupedFilterItems = groupBy(
@@ -208,6 +218,38 @@ function getFiltersCondition(
   return `AND ${condition}`;
 }
 
+async function getLocationIds(
+  db: Database,
+  dataSetDir: string,
+  query: DataSetQuery,
+  locationCols: string[],
+  locationIdHasher: Hashids
+): Promise<number[]> {
+  const codeCols = Object.values(geographicLevelColumns)
+    .map((col) => col.code)
+    .filter((col) => locationCols.includes(col));
+
+  const ids = parseIdStrings(query.locations, locationIdHasher);
+  const idPlaceholders = indexPlaceholders(ids);
+
+  if (!ids.length) {
+    return [];
+  }
+
+  const locations = await db.all<{ id: number }>(
+    `
+      SELECT id
+      FROM '${tableFile(dataSetDir, 'locations')}'
+      WHERE id::VARCHAR IN (${idPlaceholders})
+        OR ${codeCols
+          .map((col) => `${col} IN (${idPlaceholders})`)
+          .join(' OR ')}`,
+    ids
+  );
+
+  return locations.map((location) => location.id);
+}
+
 async function getLocationColumns(
   db: Database,
   dataSetDir: string
@@ -243,7 +285,7 @@ async function getIndicators(
     return [];
   }
 
-  const idPlaceholders = indicatorIds.map((_, index) => `$${index + 1}`);
+  const idPlaceholders = indexPlaceholders(indicatorIds);
 
   return await db.all<Indicator>(
     `SELECT *
@@ -301,6 +343,10 @@ function parseIdStrings(ids: string[], idHasher: Hashids): string[] {
 
 function placeholders(value: unknown[]): string[] {
   return value.map(() => '?');
+}
+
+function indexPlaceholders(value: unknown[]): string[] {
+  return value.map((_, index) => `$${index + 1}`);
 }
 
 function tableFile(
