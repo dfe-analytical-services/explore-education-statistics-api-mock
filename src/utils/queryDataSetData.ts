@@ -32,9 +32,9 @@ export default async function queryDataSetData(
 
   const db = new Database();
 
-  const filterIdHasher = createFilterIdHasher();
-  const locationIdHasher = createLocationIdHasher();
-  const indicatorIdHasher = createIndicatorIdHasher();
+  const filterIdHasher = createFilterIdHasher(dataSetDir);
+  const locationIdHasher = createLocationIdHasher(dataSetDir);
+  const indicatorIdHasher = createIndicatorIdHasher(dataSetDir);
 
   const { timePeriod, page = 1, pageSize = 100 } = query;
   const filterItemIds = parseIds(query.filterItems, filterIdHasher);

@@ -81,7 +81,7 @@ async function getLocationsMeta(
 
   const geographicLevelLabels = invert(geographicLevelCsvLabels);
 
-  const hasher = createLocationIdHasher();
+  const hasher = createLocationIdHasher(dataSetDir);
 
   const locationsMeta: Dictionary<LocationMetaViewModel[]> = {};
 
@@ -138,7 +138,7 @@ async function getFiltersMeta(
       FROM '${filePath}';`
   );
 
-  const hasher = createFilterIdHasher();
+  const hasher = createFilterIdHasher(dataSetDir);
 
   const filtersMeta: FilterMetaViewModel[] = [];
 
@@ -169,7 +169,7 @@ async function getIndicatorsMeta(
   db: Database,
   dataSetDir: string
 ): Promise<IndicatorMetaViewModel[]> {
-  const hasher = createIndicatorIdHasher();
+  const hasher = createIndicatorIdHasher(dataSetDir);
 
   const indicators = await db.all<Indicator>(
     `SELECT * FROM '${tableFile(dataSetDir, 'indicators')}' ORDER BY label ASC;`
