@@ -228,10 +228,7 @@ components:
       type: object
       description: A query for data from a data set matching specific facets.
       required:
-        - timePeriod
-        - filterItems
         - indicators
-        - locations
       properties:
         timePeriod:
           $ref: '#/components/schemas/TimePeriodQuery'

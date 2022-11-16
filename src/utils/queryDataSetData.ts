@@ -37,11 +37,12 @@ export default async function queryDataSetData(
   const locationIdHasher = createLocationIdHasher(dataSetDir);
   const indicatorIdHasher = createIndicatorIdHasher(dataSetDir);
 
-  const { timePeriod, page = 1, pageSize = 100 } = query;
-  const filterItemIds = parseIds(query.filterItems, filterIdHasher);
-  const indicatorIds = parseIdStrings(query.indicators, indicatorIdHasher);
-
-  const startCode = timePeriodCodeIdentifiers[timePeriod.startCode];
+  const { page = 1, pageSize = 100 } = query;
+  const filterItemIds = parseIds(query.filterItems ?? [], filterIdHasher);
+  const indicatorIds = parseIdStrings(
+    query.indicators ?? [],
+    indicatorIdHasher
+  );
 
   const [locationCols, filterCols, indicators, filterItems] = await Promise.all(
     [
@@ -65,21 +66,27 @@ export default async function queryDataSetData(
     (filter) => filter.group_name
   );
 
-  const createQuery = (columns: string[]) => `
-      SELECT ${columns}
-      FROM '${tableFile(dataSetDir, 'data')}' AS data
-          ${getFilterJoins(dataSetDir, filterCols, 'label')}
-          JOIN '${tableFile(dataSetDir, 'locations')}' AS locations
-            ON (${locationCols.map((col) => `locations.${col}`)})
-                = (${locationCols.map((col) => `data.${col}`)})
-      WHERE data.time_identifier = ?
-        AND data.time_period >= ?
-        AND data.time_period <= ? ${
-          locationIds.length > 0
-            ? `AND locations.id IN (${placeholders(locationIds)})`
-            : ''
-        } ${getFiltersCondition(dataSetDir, groupedFilterItems)}
-      `;
+  const createQuery = (columns: string[]) => {
+    const whereCondition = [
+      getTimePeriodCondition(query),
+      locationIds.length > 0
+        ? `locations.id IN (${placeholders(locationIds)})`
+        : '',
+      getFiltersCondition(dataSetDir, groupedFilterItems),
+    ]
+      .filter(Boolean)
+      .join(' AND ');
+
+    return `
+        SELECT ${columns}
+        FROM '${tableFile(dataSetDir, 'data')}' AS data
+            ${getFilterJoins(dataSetDir, filterCols, 'label')}
+            JOIN '${tableFile(dataSetDir, 'locations')}' AS locations
+              ON (${locationCols.map((col) => `locations.${col}`)})
+                  = (${locationCols.map((col) => `data.${col}`)})
+        ${whereCondition ? `WHERE ${whereCondition}` : ''}
+    `;
+  };
 
   // Tried cursor/keyset pagination, but it's probably too difficult to implement.
   // Might need to revisit this in the future if performance is an issue.
@@ -96,9 +103,7 @@ export default async function queryDataSetData(
   const pageOffset = (page - 1) * pageSize;
 
   const params = [
-    startCode,
-    timePeriod.startYear,
-    timePeriod.endYear,
+    ...getTimePeriodParams(query),
     ...locationIds,
     ...Object.values(groupedFilterItems).flatMap((items) =>
       items.map((item) => item.label)
@@ -204,6 +209,48 @@ export default async function queryDataSetData(
   };
 }
 
+function getTimePeriodCondition({ timePeriod }: DataSetQuery): string {
+  const conditions = [];
+
+  // TODO: Implement start/end codes properly
+
+  if (timePeriod?.startCode) {
+    conditions.push('data.time_identifier = ?');
+  }
+
+  if (timePeriod?.startYear) {
+    conditions.push('data.time_period >= ?');
+  }
+
+  if (timePeriod?.endYear) {
+    conditions.push('data.time_period <= ?');
+  }
+
+  return conditions.join(' AND ');
+}
+
+function getTimePeriodParams({
+  timePeriod,
+}: DataSetQuery): (string | number)[] {
+  const params = [];
+
+  // TODO: Implement start/end codes properly
+
+  if (timePeriod?.startCode) {
+    params.push(timePeriodCodeIdentifiers[timePeriod.startCode]);
+  }
+
+  if (timePeriod?.startYear) {
+    params.push(timePeriod.startYear);
+  }
+
+  if (timePeriod?.endYear) {
+    params.push(timePeriod.endYear);
+  }
+
+  return params;
+}
+
 function getFilterJoins(
   dataSetDir: string,
   filterCols: string[],
@@ -227,14 +274,12 @@ function getFiltersCondition(
     return '';
   }
 
-  const condition = Object.entries(groupedFilterItems)
+  return Object.entries(groupedFilterItems)
     .map(
       ([groupName, filterItems]) =>
         `data."${groupName}" IN (${placeholders(filterItems)})`
     )
     .join(' AND ');
-
-  return `AND ${condition}`;
 }
 
 async function getLocationIds(
@@ -248,7 +293,7 @@ async function getLocationIds(
     .map((col) => col.code)
     .filter((col) => locationCols.includes(col));
 
-  const ids = parseIdStrings(query.locations, locationIdHasher);
+  const ids = parseIdStrings(query.locations ?? [], locationIdHasher);
   const idPlaceholders = indexPlaceholders(ids);
 
   if (!ids.length) {
