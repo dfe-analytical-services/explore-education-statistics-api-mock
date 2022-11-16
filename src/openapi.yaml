@@ -9,7 +9,7 @@ info:
     email: explore.statistics@education.gov.uk
     url: https://explore-education-statistics.service.gov.uk
 servers:
-  - url: https://ees-public-api-mock.vercel.app
+  - url: https://ees-api-mock.fly.dev/
     description: Mock API
 tags:
   - name: Publication
