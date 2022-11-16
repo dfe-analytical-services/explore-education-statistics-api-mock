@@ -377,20 +377,17 @@ components:
       properties:
         id:
           type: string
-          format: uuid
-          description: The ID of the observation.
+          description: The ID of the row.
         filters:
           type: object
           description: | 
             A dictionary containing the row's associated filters. The key is the filter name and the value is ID of the filter item.
-          items:
+          additionalProperties:
             type: string
-            format: uuid
         geographicLevel:
           $ref: '#/components/schemas/GeographicLevel'
         locationId:
           type: string
-          format: uuid
           description: The ID of the location associated to this observation.
         values:
           type: object
