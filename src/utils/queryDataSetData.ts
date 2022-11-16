@@ -22,6 +22,7 @@ type FilterItem = Pick<Filter, 'id' | 'label' | 'group_name'>;
 
 interface Result extends DataRow {
   location_id: number;
+  __total__: number;
 }
 
 export default async function queryDataSetData(
@@ -66,27 +67,55 @@ export default async function queryDataSetData(
     (filter) => filter.group_name
   );
 
-  const createQuery = (columns: string[]) => {
-    const whereCondition = [
-      getTimePeriodCondition(query),
-      locationIds.length > 0
-        ? `locations.id IN (${placeholders(locationIds)})`
-        : '',
-      getFiltersCondition(dataSetDir, groupedFilterItems),
-    ]
-      .filter(Boolean)
-      .join(' AND ');
+  const whereCondition = compact([
+    getTimePeriodCondition(query),
+    locationIds.length > 0
+      ? `locations.id IN (${placeholders(locationIds)})`
+      : '',
+    getFiltersCondition(dataSetDir, groupedFilterItems),
+  ]).join(' AND ');
 
-    return `
-        SELECT ${columns}
-        FROM '${tableFile(dataSetDir, 'data')}' AS data
-            ${getFilterJoins(dataSetDir, filterCols, 'label')}
-            JOIN '${tableFile(dataSetDir, 'locations')}' AS locations
-              ON (${locationCols.map((col) => `locations.${col}`)})
-                  = (${locationCols.map((col) => `data.${col}`)})
-        ${whereCondition ? `WHERE ${whereCondition}` : ''}
-    `;
-  };
+  const resultsQuery = `
+      WITH raw_data AS (
+          SELECT data.time_period,
+                 data.time_identifier,
+                 data.geographic_level,
+                 ${compact([
+                   formatCsv ? '' : 'locations.id AS location_id',
+                   ...filterCols.map((col) => `data.${col} as ${col}`),
+                   ...indicators.map((i) => `data."${i.name}"`),
+                 ])}
+          FROM '${tableFile(dataSetDir, 'data')}' AS data
+              JOIN '${tableFile(dataSetDir, 'locations')}' AS locations
+                  ON (${locationCols.map((col) => `locations.${col}`)})
+                      = (${locationCols.map((col) => `data.${col}`)})
+              ${whereCondition ? `WHERE ${whereCondition}` : ''}
+      ),
+      data AS (
+          SELECT ${formatCsv ? '*' : '*, count (*) over() as __total__'}
+          FROM raw_data
+          LIMIT ?
+          OFFSET ?
+      )
+      SELECT data.* REPLACE(${filterCols.map((col) => {
+        if (formatCsv) {
+          return `${col}.label AS ${col}`;
+        }
+
+        return `${
+          debug ? `concat(${col}.id, '::', ${col}.label)` : `${col}.id`
+        } AS ${col}`;
+      })})
+      FROM data
+      ${filterCols
+        .map(
+          (filter) =>
+            `JOIN '${tableFile(dataSetDir, 'filters')}' AS ${filter} 
+                ON ${filter}.label = data.${filter} 
+                AND ${filter}.group_name = '${filter.slice(1, -1)}'`
+        )
+        .join('\n')}
+  `;
 
   // Tried cursor/keyset pagination, but it's probably too difficult to implement.
   // Might need to revisit this in the future if performance is an issue.
@@ -108,48 +137,19 @@ export default async function queryDataSetData(
     ...Object.values(groupedFilterItems).flatMap((items) =>
       items.map((item) => item.label)
     ),
+    pageSize,
+    pageOffset,
   ];
 
   if (formatCsv) {
-    const query = `
-      ${createQuery(['data.*'])}
-      LIMIT ?
-      OFFSET ?
-    `;
-    const rows = await db.all<DataRow>(query, [
-      ...params,
-      pageSize,
-      pageOffset,
-    ]);
+    const rows = await db.all<DataRow>(resultsQuery, params);
 
     db.close();
 
     return Papa.unparse(rows);
   }
 
-  const totalQuery = createQuery(['count(*) as total']);
-  const resultsQuery = `
-    ${createQuery([
-      'data.time_period',
-      'data.time_identifier',
-      'locations.geographic_level',
-      'locations.id AS location_id',
-      ...filterCols.map(
-        (col) =>
-          `${
-            debug ? `concat(${col}.id, '::', ${col}.label)` : `${col}.id`
-          } AS ${col}`
-      ),
-      ...indicators.map((i) => `data."${i.name}"`),
-    ])}
-    LIMIT ?
-    OFFSET ?
-  `;
-
-  const [{ total }, results] = await Promise.all([
-    db.first<{ total: number }>(totalQuery, params),
-    db.all<Result>(resultsQuery, [...params, pageSize, pageOffset]),
-  ]);
+  const results = await db.all<Result>(resultsQuery, params);
 
   const unquotedFilterCols = filterCols.map((col) => col.slice(1, -1));
   const indicatorsById = keyBy(indicators, (indicator) =>
@@ -157,6 +157,8 @@ export default async function queryDataSetData(
   );
 
   db.close();
+
+  const total = results[0]?.__total__ ?? 0;
 
   return {
     _links: {
@@ -249,21 +251,6 @@ function getTimePeriodParams({
   }
 
   return params;
-}
-
-function getFilterJoins(
-  dataSetDir: string,
-  filterCols: string[],
-  property: keyof Filter
-) {
-  const table = tableFile(dataSetDir, 'filters');
-  return filterCols
-    .map(
-      (filter) =>
-        `JOIN '${table}' AS ${filter} ON ${filter}.${property} = data.${filter} 
-          AND ${filter}.group_name = '${filter.slice(1, -1)}'`
-    )
-    .join(' ');
 }
 
 function getFiltersCondition(
