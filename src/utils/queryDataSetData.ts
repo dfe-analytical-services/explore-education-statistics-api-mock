@@ -38,7 +38,7 @@ export default async function queryDataSetData(
   const locationIdHasher = createLocationIdHasher(dataSetDir);
   const indicatorIdHasher = createIndicatorIdHasher(dataSetDir);
 
-  const { page = 1, pageSize = 100 } = query;
+  const { page = 1, pageSize = 200 } = query;
   const filterItemIds = parseIds(query.filterItems ?? [], filterIdHasher);
   const indicatorIds = parseIdStrings(
     query.indicators ?? [],

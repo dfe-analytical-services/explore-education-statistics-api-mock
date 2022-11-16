@@ -256,8 +256,8 @@ components:
         pageSize:
           type: number
           description: The maximum number of results per page.
-          default: 100
-          maximum: 200
+          default: 500
+          maximum: 1000
         showMeta:
           type: boolean
           description: Include the data set metadata associated with the results in the response.
