@@ -399,12 +399,15 @@ components:
       type: object
       description: All the metadata associated with the data set.
       required:
+        - _links
         - totalResults
         - filters
         - indicators
         - locations
         - timePeriods
       properties:
+        _links:
+          $ref: '#/components/schemas/LinksViewModel'
         totalResults:
           type: number
           description: The total number of results.

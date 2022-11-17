@@ -26,7 +26,7 @@ import parseTimePeriodCode from './parseTimePeriodCode';
 
 export default async function getDataSetMeta(
   dataSetId: string
-): Promise<DataSetMetaViewModel> {
+): Promise<Omit<DataSetMetaViewModel, '_links'>> {
   const dataSetDir = getDataSetDir(dataSetId);
   const db = new Database();
 

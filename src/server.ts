@@ -78,10 +78,29 @@ app.get('/api/v1/publications/:publicationId/data-sets', (req, res) => {
 });
 
 app.get('/api/v1/data-sets/:dataSetId/meta', async (req, res) => {
-  if (dataSetDirs[req.params.dataSetId]) {
-    let meta = await getDataSetMeta(req.params.dataSetId);
-    res.status(200).json(meta);
-    return;
+  const dataSetId = req.params.dataSetId;
+
+  if (dataSetDirs[dataSetId]) {
+    const meta = await getDataSetMeta(dataSetId);
+
+    return res.status(200).json({
+      _links: addHostUrlToLinks(
+        {
+          self: {
+            href: `/api/v1/data-sets/${dataSetId}/meta`,
+          },
+          query: {
+            href: `/api/v1/data-sets/${dataSetId}/query`,
+            method: 'POST',
+          },
+          file: {
+            href: `/api/v1/data-sets/${dataSetId}/file`,
+          },
+        },
+        req
+      ),
+      ...meta,
+    });
   }
 
   res.status(404).json(notFoundError());
