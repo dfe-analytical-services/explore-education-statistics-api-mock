@@ -22,7 +22,6 @@ type FilterItem = Pick<Filter, 'id' | 'label' | 'group_name'>;
 
 interface Result extends DataRow {
   location_id: number;
-  __total__: number;
 }
 
 export default async function queryDataSetData(
@@ -75,8 +74,17 @@ export default async function queryDataSetData(
     getFiltersCondition(dataSetDir, groupedFilterItems),
   ]).join(' AND ');
 
+  const totalQuery = `
+      SELECT count(*) AS total
+      FROM '${tableFile(dataSetDir, 'data')}' AS data
+      JOIN '${tableFile(dataSetDir, 'locations')}' AS locations
+        ON (${locationCols.map((col) => `locations.${col}`)})
+            = (${locationCols.map((col) => `data.${col}`)})
+      ${whereCondition ? `WHERE ${whereCondition}` : ''}
+  `;
+
   const resultsQuery = `
-      WITH raw_data AS (
+      WITH data AS (
           SELECT data.time_period,
                  data.time_identifier,
                  data.geographic_level,
@@ -86,16 +94,12 @@ export default async function queryDataSetData(
                    ...indicators.map((i) => `data."${i.name}"`),
                  ])}
           FROM '${tableFile(dataSetDir, 'data')}' AS data
-              JOIN '${tableFile(dataSetDir, 'locations')}' AS locations
-                  ON (${locationCols.map((col) => `locations.${col}`)})
-                      = (${locationCols.map((col) => `data.${col}`)})
-              ${whereCondition ? `WHERE ${whereCondition}` : ''}
-      ),
-      data AS (
-          SELECT ${formatCsv ? '*' : '*, count (*) over() as __total__'}
-          FROM raw_data
+          JOIN '${tableFile(dataSetDir, 'locations')}' AS locations
+            ON (${locationCols.map((col) => `locations.${col}`)})
+                = (${locationCols.map((col) => `data.${col}`)})
+          ${whereCondition ? `WHERE ${whereCondition}` : ''}
           LIMIT ?
-          OFFSET ?
+          OFFSET ? 
       )
       SELECT data.* REPLACE(${filterCols.map((col) => {
         if (formatCsv) {
@@ -131,15 +135,14 @@ export default async function queryDataSetData(
   //   not as fast on paper. Cursor pagination may be a premature optimisation.
   const pageOffset = (page - 1) * pageSize;
 
-  const params = [
+  const baseParams = [
     ...getTimePeriodParams(query),
     ...locationIds,
     ...Object.values(groupedFilterItems).flatMap((items) =>
       items.map((item) => item.label)
     ),
-    pageSize,
-    pageOffset,
   ];
+  const params = [...baseParams, pageSize, pageOffset];
 
   if (formatCsv) {
     const rows = await db.all<DataRow>(resultsQuery, params);
@@ -149,7 +152,10 @@ export default async function queryDataSetData(
     return Papa.unparse(rows);
   }
 
-  const results = await db.all<Result>(resultsQuery, params);
+  const [{ total }, results] = await Promise.all([
+    db.first<{ total: number }>(totalQuery, baseParams),
+    db.all<Result>(resultsQuery, params),
+  ]);
 
   const unquotedFilterCols = filterCols.map((col) => col.slice(1, -1));
   const indicatorsById = keyBy(indicators, (indicator) =>
@@ -157,8 +163,6 @@ export default async function queryDataSetData(
   );
 
   db.close();
-
-  const total = results[0]?.__total__ ?? 0;
 
   return {
     _links: {
