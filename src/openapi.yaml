@@ -96,6 +96,22 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: page
+          in: query
+          description: The page of results to fetch.
+          required: false
+          schema:
+            type: number
+            minimum: 1
+        - name: pageSize
+          in: query
+          description: The maximum number of results per page.
+          required: false
+          schema:
+            type: number
+            minimum: 0
+            maximum: 1000
+            default: 500
         - name: Accept
           in: header
           description: The media type to format the data in. Use `text/csv` to return data in CSV format.
@@ -249,15 +265,6 @@ components:
           description: The IDs or codes (if available) of locations to filter results by.
           items:
             type: string
-        page:
-          type: number
-          description: The page of results to fetch.
-          default: 1
-        pageSize:
-          type: number
-          description: The maximum number of results per page.
-          default: 500
-          maximum: 1000
         showMeta:
           type: boolean
           description: Include the data set metadata associated with the results in the response.
@@ -645,7 +652,7 @@ components:
         page:
           type: number
           description: The current page number.
-          minimum: 1
+          minimum: 0
         pageSize:
           type: number
           description: The maximum number of results per page.

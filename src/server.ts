@@ -7,11 +7,14 @@ import path from 'path';
 import { allDataSets, spcDataSets } from './mocks/dataSets';
 import { publications, spcPublication } from './mocks/publications';
 import { ApiErrorViewModel, LinksViewModel } from './schema';
+import createPaginationLinks from './utils/createPaginationLinks';
+import createSelfLink from './utils/createSelfLink';
 import { dataSetDirs } from './utils/getDataSetDir';
 import getDataSetMeta from './utils/getDataSetMeta';
 import normalizeApiErrors from './utils/normalizeApiErrors';
-import paginateResults from './utils/paginateResults';
-import queryDataSetData from './utils/queryDataSetData';
+import parsePaginationParams from './utils/parsePaginationParams';
+import { getHostUrl } from './utils/requestUtils';
+import { runDataSetQuery, runDataSetQueryToCsv } from './utils/runDataSetQuery';
 
 const apiSpec = path.resolve(__dirname, './openapi.yaml');
 
@@ -42,6 +45,7 @@ app.use('/docs', express.static(apiSpec));
 
 app.get('/api/v1/publications', (req, res) => {
   const { search } = req.query;
+  const { page = 1, pageSize = 20 } = parsePaginationParams(req);
 
   const filteredPublications = (
     typeof search === 'string'
@@ -54,12 +58,26 @@ app.get('/api/v1/publications', (req, res) => {
     _links: addHostUrlToLinks(publication._links, req),
   }));
 
-  res.status(200).json(
-    paginateResults(filteredPublications, {
-      ...req.query,
-      baseUrl: `${getHostUrl(req)}/api/v1/publications`,
-    })
-  );
+  const start = (page - 1) * pageSize;
+  const totalPages =
+    pageSize > 0 ? Math.ceil(filteredPublications.length / pageSize) : 0;
+
+  res.status(200).json({
+    _links: {
+      self: createSelfLink(req),
+      ...createPaginationLinks(req, {
+        page,
+        totalPages,
+      }),
+    },
+    paging: {
+      page,
+      pageSize,
+      totalPages: totalPages,
+      totalResults: filteredPublications.length,
+    },
+    results: filteredPublications.slice(start, start + pageSize),
+  });
 });
 
 app.get('/api/v1/publications/:publicationId/data-sets', (req, res) => {
@@ -68,7 +86,25 @@ app.get('/api/v1/publications/:publicationId/data-sets', (req, res) => {
       res.status(200).json(
         spcDataSets.map((dataSet) => ({
           ...dataSet,
-          _links: addHostUrlToLinks(dataSet._links, req),
+
+          _links: {
+            self: createSelfLink(req),
+            ...addHostUrlToLinks(
+              {
+                query: {
+                  href: `/api/v1/data-sets/${dataSet.id}/query`,
+                  method: 'POST',
+                },
+                file: {
+                  href: `/api/v1/data-sets/${dataSet.id}/file`,
+                },
+                meta: {
+                  href: `/api/v1/data-sets/${dataSet.id}/meta`,
+                },
+              },
+              req
+            ),
+          },
         }))
       );
       break;
@@ -84,21 +120,21 @@ app.get('/api/v1/data-sets/:dataSetId/meta', async (req, res) => {
     const meta = await getDataSetMeta(dataSetId);
 
     return res.status(200).json({
-      _links: addHostUrlToLinks(
-        {
-          self: {
-            href: `/api/v1/data-sets/${dataSetId}/meta`,
+      _links: {
+        self: createSelfLink(req),
+        ...addHostUrlToLinks(
+          {
+            query: {
+              href: `/api/v1/data-sets/${dataSetId}/query`,
+              method: 'POST',
+            },
+            file: {
+              href: `/api/v1/data-sets/${dataSetId}/file`,
+            },
           },
-          query: {
-            href: `/api/v1/data-sets/${dataSetId}/query`,
-            method: 'POST',
-          },
-          file: {
-            href: `/api/v1/data-sets/${dataSetId}/file`,
-          },
-        },
-        req
-      ),
+          req
+        ),
+      },
       ...meta,
     });
   }
@@ -107,23 +143,66 @@ app.get('/api/v1/data-sets/:dataSetId/meta', async (req, res) => {
 });
 
 app.post('/api/v1/data-sets/:dataSetId/query', async (req, res) => {
-  if (dataSetDirs[req.params.dataSetId]) {
-    const formatCsv = req.accepts().includes('text/csv');
-    const results = await queryDataSetData(req.params.dataSetId, req.body, {
+  const dataSetId = req.params.dataSetId;
+
+  const { page = 1, pageSize = 500 } = parsePaginationParams(req);
+
+  if (dataSetDirs[dataSetId]) {
+    if (req.accepts().includes('text/csv')) {
+      const {
+        csv,
+        paging: { totalPages, totalResults },
+      } = await runDataSetQueryToCsv(dataSetId, req.body, {
+        page,
+        pageSize,
+      });
+
+      const links = mapValues(
+        createPaginationLinks(req, {
+          page,
+          totalPages,
+        }),
+        (link) => link.href
+      );
+
+      return res
+        .status(200)
+        .contentType('text/csv')
+        .setHeader('Page', page)
+        .setHeader('Page-Size', pageSize)
+        .setHeader('Total-Results', totalResults)
+        .setHeader('Total-Pages', totalPages)
+        .links(links)
+        .send(csv);
+    }
+
+    const response = await runDataSetQuery(dataSetId, req.body, {
+      page,
+      pageSize,
       debug: typeof req.query.debug !== 'undefined',
-      formatCsv,
     });
 
-    res.contentType(formatCsv ? 'text/csv' : 'application/json');
-
-    return res.status(200).send(
-      typeof results === 'string'
-        ? results
-        : {
-            ...results,
-            _links: addHostUrlToLinks(results._links, req),
-          }
-    );
+    return res.status(200).send({
+      _links: {
+        self: createSelfLink(req),
+        ...createPaginationLinks(req, {
+          page,
+          totalPages: response.paging.totalPages,
+        }),
+        ...addHostUrlToLinks(
+          {
+            file: {
+              href: `/api/v1/data-sets/${dataSetId}/file`,
+            },
+            meta: {
+              href: `/api/v1/data-sets/${dataSetId}/meta`,
+            },
+          },
+          req
+        ),
+      },
+      ...response,
+    });
   }
 
   res.status(404).json(notFoundError());
@@ -179,9 +258,4 @@ function addHostUrlToLinks(
       href: `${hostUrl}${link.href}`,
     };
   });
-}
-
-function getHostUrl(req: Request) {
-  const host = req.get('host');
-  return host ? `${req.protocol}://${host}` : '';
 }

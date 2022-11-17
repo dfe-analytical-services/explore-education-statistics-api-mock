@@ -1,7 +1,11 @@
 import Hashids from 'hashids';
 import { compact, groupBy, keyBy, mapValues } from 'lodash';
 import Papa from 'papaparse';
-import { DataSetQuery, DataSetResultsViewModel } from '../schema';
+import {
+  DataSetQuery,
+  DataSetResultsViewModel,
+  PagingViewModel,
+} from '../schema';
 import { DataRow, Filter, Indicator } from '../types/dbSchemas';
 import Database from './Database';
 import getDataSetDir from './getDataSetDir';
@@ -20,24 +24,146 @@ import { timePeriodCodeIdentifiers } from './timePeriodConstants';
 
 type FilterItem = Pick<Filter, 'id' | 'label' | 'group_name'>;
 
-interface Result extends DataRow {
+interface DataRowWithLocation extends DataRow {
   location_id: number;
 }
 
-export default async function queryDataSetData(
+export async function runDataSetQuery(
   dataSetId: string,
   query: DataSetQuery,
-  { debug, formatCsv }: { debug: boolean; formatCsv: boolean }
-): Promise<DataSetResultsViewModel | string> {
+  { debug, page, pageSize }: { debug?: boolean; page: number; pageSize: number }
+): Promise<Omit<DataSetResultsViewModel, '_links'>> {
   const dataSetDir = getDataSetDir(dataSetId);
 
   const db = new Database();
-
   const filterIdHasher = createFilterIdHasher(dataSetDir);
-  const locationIdHasher = createLocationIdHasher(dataSetDir);
-  const indicatorIdHasher = createIndicatorIdHasher(dataSetDir);
+  const locationIdHasher = createFilterIdHasher(dataSetDir);
 
-  const { page = 1, pageSize = 200 } = query;
+  try {
+    const { results, total, filterCols, indicators } =
+      await runQuery<DataRowWithLocation>(
+        db,
+        dataSetDir,
+        { ...query, page, pageSize },
+        {
+          debug,
+          filterIdHasher,
+        }
+      );
+
+    const unquotedFilterCols = filterCols.map((col) => col.slice(1, -1));
+    const indicatorsById = keyBy(indicators, (indicator) =>
+      indicator.name.toString()
+    );
+
+    return {
+      paging: {
+        page,
+        pageSize,
+        totalResults: total,
+        totalPages: pageSize > 0 ? Math.ceil(total / pageSize) : pageSize,
+      },
+      footnotes: [],
+      warnings:
+        results.length === 0
+          ? [
+              'No results matched the query criteria. You may need to refine your query.',
+            ]
+          : undefined,
+      results: results.map((result) => {
+        return {
+          filters: unquotedFilterCols.reduce<Dictionary<string>>((acc, col) => {
+            acc[col] = debug
+              ? result[col].toString()
+              : filterIdHasher.encode(Number(result[col]));
+
+            return acc;
+          }, {}),
+          timePeriod: {
+            code: parseTimePeriodCode(result.time_identifier),
+            year: Number(result.time_period),
+          },
+          geographicLevel: csvLabelsToGeographicLevels[result.geographic_level],
+          locationId: debug
+            ? result.location_id.toString()
+            : locationIdHasher.encode(result.location_id),
+          values: mapValues(indicatorsById, (indicator) =>
+            result[indicator.name].toString()
+          ),
+        };
+      }),
+    };
+  } finally {
+    db.close();
+  }
+}
+
+interface CsvReturn {
+  csv: string;
+  paging: PagingViewModel;
+}
+
+export async function runDataSetQueryToCsv(
+  dataSetId: string,
+  query: DataSetQuery,
+  { page, pageSize }: { page: number; pageSize: number }
+): Promise<CsvReturn> {
+  const dataSetDir = getDataSetDir(dataSetId);
+  const db = new Database();
+
+  try {
+    const { results, total } = await runQuery<DataRow>(db, dataSetDir, {
+      ...query,
+      page,
+      pageSize,
+    });
+
+    return {
+      csv: Papa.unparse(results),
+      paging: {
+        page,
+        pageSize,
+        totalResults: total,
+        totalPages: Math.ceil(total / pageSize),
+      },
+    };
+  } finally {
+    db.close();
+  }
+}
+
+interface RunQueryOptions {
+  debug?: boolean;
+  formatCsv?: boolean;
+  filterIdHasher?: Hashids;
+  locationIdHasher?: Hashids;
+  indicatorIdHasher?: Hashids;
+}
+
+interface RunQueryReturn<TRow extends DataRow = DataRow> {
+  results: TRow[];
+  total: number;
+  locationCols: string[];
+  filterCols: string[];
+  indicators: Indicator[];
+  filterItems: FilterItem[];
+}
+
+async function runQuery<TRow extends DataRow>(
+  db: Database,
+  dataSetDir: string,
+  query: DataSetQuery & { page: number; pageSize: number },
+  options: RunQueryOptions = {}
+): Promise<RunQueryReturn<TRow>> {
+  const {
+    debug,
+    formatCsv,
+    filterIdHasher = createFilterIdHasher(dataSetDir),
+    locationIdHasher = createLocationIdHasher(dataSetDir),
+    indicatorIdHasher = createIndicatorIdHasher(dataSetDir),
+  } = options;
+
+  const { page, pageSize } = query;
   const filterItemIds = parseIds(query.filterItems ?? [], filterIdHasher);
   const indicatorIds = parseIdStrings(
     query.indicators ?? [],
@@ -142,76 +268,19 @@ export default async function queryDataSetData(
       items.map((item) => item.label)
     ),
   ];
-  const params = [...baseParams, pageSize, pageOffset];
-
-  if (formatCsv) {
-    const rows = await db.all<DataRow>(resultsQuery, params);
-
-    db.close();
-
-    return Papa.unparse(rows);
-  }
 
   const [{ total }, results] = await Promise.all([
     db.first<{ total: number }>(totalQuery, baseParams),
-    db.all<Result>(resultsQuery, params),
+    db.all<TRow>(resultsQuery, [...baseParams, pageSize, pageOffset]),
   ]);
 
-  const unquotedFilterCols = filterCols.map((col) => col.slice(1, -1));
-  const indicatorsById = keyBy(indicators, (indicator) =>
-    indicator.name.toString()
-  );
-
-  db.close();
-
   return {
-    _links: {
-      self: {
-        href: `/api/v1/data-sets/${dataSetId}/query`,
-        method: 'POST',
-      },
-      file: {
-        href: `/api/v1/data-sets/${dataSetId}/file`,
-      },
-      meta: {
-        href: `/api/v1/data-sets/${dataSetId}/meta`,
-      },
-    },
-    paging: {
-      page,
-      pageSize,
-      totalResults: total,
-      totalPages: Math.ceil(total / pageSize),
-    },
-    footnotes: [],
-    warnings:
-      results.length === 0
-        ? [
-            'No results matched the query criteria. You may need to refine your query.',
-          ]
-        : undefined,
-    results: results.map((result) => {
-      return {
-        filters: unquotedFilterCols.reduce<Dictionary<string>>((acc, col) => {
-          acc[col] = debug
-            ? result[col].toString()
-            : filterIdHasher.encode(Number(result[col]));
-
-          return acc;
-        }, {}),
-        timePeriod: {
-          code: parseTimePeriodCode(result.time_identifier),
-          year: Number(result.time_period),
-        },
-        geographicLevel: csvLabelsToGeographicLevels[result.geographic_level],
-        locationId: debug
-          ? result.location_id.toString()
-          : locationIdHasher.encode(result.location_id),
-        values: mapValues(indicatorsById, (indicator) =>
-          result[indicator.name].toString()
-        ),
-      };
-    }),
+    results,
+    total,
+    locationCols,
+    filterCols,
+    indicators,
+    filterItems,
   };
 }
 
