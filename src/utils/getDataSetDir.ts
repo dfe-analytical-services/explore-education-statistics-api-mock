@@ -8,25 +8,16 @@ import {
   spcYearGroupGenderDataSet,
 } from '../mocks/dataSets';
 
+const basePath = path.resolve(__dirname, '../data');
+
 export const dataSetDirs = {
-  [spcEthnicityLanguageDataSet.id]: path.resolve(
-    __dirname,
-    '../data/spc_pupils_ethnicity_and_language'
-  ),
-  [spcYearGroupGenderDataSet.id]: path.resolve(
-    __dirname,
-    '../data/spc_pupils_fsm_ethnicity_yrgp'
-  ),
-  [benchmarkETDetailedReorderedDataSet.id]: path.resolve(
-    __dirname,
-    '../data/e-and-t-geography-detailed_6years_reordered'
-  ),
-  [benchmarkQuaDataSet.id]: path.resolve(__dirname, '../data/qua01'),
-  [benchmarkNatDataSet.id]: path.resolve(__dirname, '../data/nat01'),
-  [benchmarkLtdDmDataSet.id]: path.resolve(
-    __dirname,
-    '../data/ltd_dm_201415_inst'
-  ),
+  [spcEthnicityLanguageDataSet.id]: 'spc_pupils_ethnicity_and_language',
+  [spcYearGroupGenderDataSet.id]: 'spc_pupils_fsm_ethnicity_yrgp',
+  [benchmarkETDetailedReorderedDataSet.id]:
+    'e-and-t-geography-detailed_6years_reordered',
+  [benchmarkQuaDataSet.id]: 'qua01',
+  [benchmarkNatDataSet.id]: 'nat01',
+  [benchmarkLtdDmDataSet.id]: 'ltd_dm_201415_inst',
 };
 
 export default function getDataSetDir(dataSetId: string) {
@@ -36,5 +27,5 @@ export default function getDataSetDir(dataSetId: string) {
     throw new Error(`No data set for this id: ${dataSetId}`);
   }
 
-  return dataSetDir;
+  return `${basePath}/${dataSetDir}`;
 }
