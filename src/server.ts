@@ -80,37 +80,51 @@ app.get('/api/v1/publications', (req, res) => {
   });
 });
 
+app.get('/api/v1/publications/:publicationId', (req, res) => {
+  const publication = publications.find(
+    (publication) => publication.id === req.params.publicationId
+  );
+
+  if (!publication) {
+    return res.status(404).json(notFoundError());
+  }
+
+  res.status(200).json({
+    ...publication,
+    _links: addHostUrlToLinks(publication._links, req),
+  });
+});
+
 app.get('/api/v1/publications/:publicationId/data-sets', (req, res) => {
   switch (req.params.publicationId) {
     case spcPublication.id:
       res.status(200).json(
         spcDataSets.map((dataSet) => ({
           ...dataSet,
-
-          _links: {
-            self: createSelfLink(req),
-            ...addHostUrlToLinks(
-              {
-                query: {
-                  href: `/api/v1/data-sets/${dataSet.id}/query`,
-                  method: 'POST',
-                },
-                file: {
-                  href: `/api/v1/data-sets/${dataSet.id}/file`,
-                },
-                meta: {
-                  href: `/api/v1/data-sets/${dataSet.id}/meta`,
-                },
-              },
-              req
-            ),
-          },
+          _links: addHostUrlToLinks(dataSet._links, req),
         }))
       );
       break;
     default:
       res.status(404).json(notFoundError());
   }
+});
+
+app.get('/api/v1/data-sets/:dataSetId', async (req, res) => {
+  const dataSetId = req.params.dataSetId;
+
+  const matchingDataSet = allDataSets.find(
+    (dataSet) => dataSet.id === dataSetId
+  );
+
+  if (!matchingDataSet) {
+    return res.status(404).json(notFoundError());
+  }
+
+  return res.status(200).json({
+    ...matchingDataSet,
+    _links: addHostUrlToLinks(matchingDataSet._links, req),
+  });
 });
 
 app.get('/api/v1/data-sets/:dataSetId/meta', async (req, res) => {

@@ -21,7 +21,7 @@ paths:
     get:
       operationId: ListPublications
       summary: List publications
-      description: Lists publications with data available for querying.
+      description: Lists details about publications with data available for querying.
       tags:
         - Publication
       parameters:
@@ -53,11 +53,33 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PagedPublicationSummaryViewModel'
+  /api/v1/publications/{publicationId}:
+    get:
+      operationId: GetPublication
+      summary: Get a publication's details
+      description: Gets a specific publication's details.
+      tags:
+        - Publication
+      parameters:
+        - name: publicationId
+          in: path
+          description: The ID of the publication.
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicationSummaryViewModel'
   /api/v1/publications/{publicationId}/data-sets:
     get:
       operationId: ListPublicationDataSets
       summary: List a publication's data sets
-      description: Lists data sets related to a publication.
+      description: Lists summary details of all the data sets related to a publication.
       tags:
         - Publication
       parameters:
@@ -81,6 +103,28 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/v1/data-sets/{dataSetId}:
+    get:
+      operationId: GetDataSet
+      summary: Get a data set's summary
+      description: Gets a specific data set's summary details.
+      tags:
+        - Data Set
+      parameters:
+        - name: dataSetId
+          in: path
+          description: The ID of the data set.
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataSetViewModel'
   /api/v1/data-sets/{dataSetId}/query:
     post:
       operationId: QueryDataSet
