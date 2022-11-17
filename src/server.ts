@@ -1,11 +1,12 @@
 import bodyParser from 'body-parser';
 import compression from 'compression';
-import express, { ErrorRequestHandler, Request, Response } from 'express';
+import express, { ErrorRequestHandler, Request } from 'express';
 import * as OpenApiValidator from 'express-openapi-validator';
+import { mapValues } from 'lodash';
 import path from 'path';
 import { allDataSets, spcDataSets } from './mocks/dataSets';
 import { publications, spcPublication } from './mocks/publications';
-import { ApiErrorViewModel } from './schema';
+import { ApiErrorViewModel, LinksViewModel } from './schema';
 import { dataSetDirs } from './utils/getDataSetDir';
 import getDataSetMeta from './utils/getDataSetMeta';
 import normalizeApiErrors from './utils/normalizeApiErrors';
@@ -41,17 +42,22 @@ app.use('/docs', express.static(apiSpec));
 
 app.get('/api/v1/publications', (req, res) => {
   const { search } = req.query;
-  const filteredPublications =
+
+  const filteredPublications = (
     typeof search === 'string'
       ? publications.filter((publication) =>
           publication.title.toLowerCase().includes(search.toLowerCase())
         )
-      : publications;
+      : publications
+  ).map((publication) => ({
+    ...publication,
+    _links: addHostUrlToLinks(publication._links, req),
+  }));
 
   res.status(200).json(
     paginateResults(filteredPublications, {
       ...req.query,
-      baseUrl: '/api/v1/publications',
+      baseUrl: `${getHostUrl(req)}/api/v1/publications`,
     })
   );
 });
@@ -59,7 +65,12 @@ app.get('/api/v1/publications', (req, res) => {
 app.get('/api/v1/publications/:publicationId/data-sets', (req, res) => {
   switch (req.params.publicationId) {
     case spcPublication.id:
-      res.status(200).json(spcDataSets);
+      res.status(200).json(
+        spcDataSets.map((dataSet) => ({
+          ...dataSet,
+          _links: addHostUrlToLinks(dataSet._links, req),
+        }))
+      );
       break;
     default:
       res.status(404).json(notFoundError());
@@ -68,12 +79,12 @@ app.get('/api/v1/publications/:publicationId/data-sets', (req, res) => {
 
 app.get('/api/v1/data-sets/:dataSetId/meta', async (req, res) => {
   if (dataSetDirs[req.params.dataSetId]) {
-    res.status(200).json(await getDataSetMeta(req.params.dataSetId));
+    let meta = await getDataSetMeta(req.params.dataSetId);
+    res.status(200).json(meta);
     return;
   }
 
   res.status(404).json(notFoundError());
-  return;
 });
 
 app.post('/api/v1/data-sets/:dataSetId/query', async (req, res) => {
@@ -86,7 +97,14 @@ app.post('/api/v1/data-sets/:dataSetId/query', async (req, res) => {
 
     res.contentType(formatCsv ? 'text/csv' : 'application/json');
 
-    return res.status(200).send(results);
+    return res.status(200).send(
+      typeof results === 'string'
+        ? results
+        : {
+            ...results,
+            _links: addHostUrlToLinks(results._links, req),
+          }
+    );
   }
 
   res.status(404).json(notFoundError());
@@ -128,4 +146,23 @@ function notFoundError(): ApiErrorViewModel {
     type: 'https://datatracker.ietf.org/doc/html/rfc7231#section-6.5.4',
     title: 'Not Found',
   };
+}
+
+function addHostUrlToLinks(
+  links: LinksViewModel,
+  req: Request
+): LinksViewModel {
+  const hostUrl = getHostUrl(req);
+
+  return mapValues(links, (link) => {
+    return {
+      ...link,
+      href: `${hostUrl}${link.href}`,
+    };
+  });
+}
+
+function getHostUrl(req: Request) {
+  const host = req.get('host');
+  return host ? `${req.protocol}://${host}` : '';
 }
