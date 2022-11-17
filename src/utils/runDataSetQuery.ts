@@ -1,9 +1,10 @@
 import Hashids from 'hashids';
-import { compact, groupBy, keyBy, mapValues } from 'lodash';
+import { compact, groupBy, keyBy, mapValues, pickBy } from 'lodash';
 import Papa from 'papaparse';
 import {
   DataSetQuery,
   DataSetResultsViewModel,
+  GeographicLevel,
   PagingViewModel,
 } from '../schema';
 import { DataRow, Filter, Indicator } from '../types/dbSchemas';
@@ -18,6 +19,7 @@ import {
 import {
   csvLabelsToGeographicLevels,
   geographicLevelColumns,
+  geographicLevelCsvLabels,
 } from './locationConstants';
 import parseTimePeriodCode from './parseTimePeriodCode';
 import { timePeriodCodeIdentifiers } from './timePeriodConstants';
@@ -349,10 +351,9 @@ async function getLocationIds(
   locationCols: string[],
   locationIdHasher: Hashids
 ): Promise<number[]> {
-  const codeCols = Object.values(geographicLevelColumns)
-    .map((col) => col.code)
-    .filter((col) => locationCols.includes(col));
-
+  const allowedGeographicLevelCols = pickBy(geographicLevelColumns, (col) =>
+    locationCols.includes(col.code)
+  );
   const ids = parseIdStrings(query.locations ?? [], locationIdHasher);
   const idPlaceholders = indexPlaceholders(ids);
 
@@ -365,8 +366,13 @@ async function getLocationIds(
       SELECT id
       FROM '${tableFile(dataSetDir, 'locations')}'
       WHERE id::VARCHAR IN (${idPlaceholders})
-        OR ${codeCols
-          .map((col) => `${col} IN (${idPlaceholders})`)
+        OR ${Object.entries(allowedGeographicLevelCols)
+          .map(([geographicLevel, col]) => {
+            const label =
+              geographicLevelCsvLabels[geographicLevel as GeographicLevel];
+
+            return `(geographic_level = '${label}' AND ${col.code} IN (${idPlaceholders}))`;
+          })
           .join(' OR ')}`,
     ids
   );
