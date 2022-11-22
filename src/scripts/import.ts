@@ -119,19 +119,31 @@ async function extractTimePeriods(db: Database): Promise<void> {
     `CREATE TABLE time_periods(
         id UINTEGER PRIMARY KEY DEFAULT nextval('time_periods_seq'),
         year UINTEGER NOT NULL,
-        identifier VARCHAR
+        identifier VARCHAR,
+        ordering UINTEGER NOT NULL
      );`
   );
 
-  // TODO - implement better ordering for time periods
-  await db.run(
-    `INSERT INTO time_periods(year, identifier) 
-      SELECT DISTINCT
-        time_period AS year, 
-        time_identifier AS identifier
-      FROM data
-      ORDER BY time_period, time_identifier ASC;`
-  );
+  const timePeriods = await db.all<{ year: string; identifier: string }>(`
+    SELECT DISTINCT
+          time_period AS year, 
+          time_identifier AS identifier
+    FROM data
+    ORDER BY time_period ASC, time_identifier ASC;
+  `);
+
+  // TODO - implement actual ordering for time periods
+  let index = 0;
+
+  for (const timePeriod of timePeriods) {
+    index += 1;
+
+    await db.run(
+      `
+        INSERT INTO time_periods(year, identifier, ordering) VALUES (?, ?, ?)`,
+      [timePeriod.year, timePeriod.identifier, index]
+    );
+  }
 
   console.timeEnd(timeLabel);
 }

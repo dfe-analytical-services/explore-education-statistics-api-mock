@@ -238,7 +238,11 @@ async function runQuery<TRow extends DataRow>(
           JOIN '${tableFile(dataSetDir, 'locations')}' AS locations
             ON (${locationCols.map((col) => `locations.${col}`)})
                 = (${locationCols.map((col) => `data.${col}`)})
+          JOIN '${tableFile(dataSetDir, 'time_periods')}' AS time_periods
+            ON (time_periods.year, time_periods.identifier) 
+                = (data.time_period, data.time_identifier)
           ${whereCondition ? `WHERE ${whereCondition}` : ''}
+          ORDER BY time_periods.ordering DESC
           LIMIT ?
           OFFSET ? 
       )
