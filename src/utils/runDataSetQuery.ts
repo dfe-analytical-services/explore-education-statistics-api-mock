@@ -39,7 +39,7 @@ export async function runDataSetQuery(
 
   const db = new Database();
   const filterIdHasher = createFilterIdHasher(dataSetDir);
-  const locationIdHasher = createFilterIdHasher(dataSetDir);
+  const locationIdHasher = createLocationIdHasher(dataSetDir);
 
   try {
     const { results, total, filterCols, indicators } =
