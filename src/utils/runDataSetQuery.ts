@@ -211,6 +211,19 @@ async function runQuery<TRow extends DataRow>(
       ${whereCondition ? `WHERE ${whereCondition}` : ''}
   `;
 
+  // We essentially split this query into two parts:
+  // 1. The inner main query which is offset paginated
+  // 2. The outer query which uses the results from the inner query
+  //
+  // We do this as we generate joins to the `filters` table on each filter column
+  // for the filter item IDs. This can be very expensive if there are lots of them,
+  // so by only doing this on the paginated results, we can limit this overhead
+  // substantially and the query performs a lot better.
+  //
+  // We could alternatively fetch all the filter items into memory and pair these
+  // up with the filter column values in our application level code. There might
+  // some other approaches too, but I just settled on the current implementation
+  // for now as it seemed to provide adequate response times (< 1s).
   const resultsQuery = `
       WITH data AS (
           SELECT data.time_period,
