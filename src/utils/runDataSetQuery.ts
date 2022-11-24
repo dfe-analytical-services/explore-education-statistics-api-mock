@@ -242,7 +242,7 @@ async function runQuery<TRow extends DataRow>(
             ON (time_periods.year, time_periods.identifier) 
                 = (data.time_period, data.time_identifier)
           ${whereCondition ? `WHERE ${whereCondition}` : ''}
-          ORDER BY time_periods.ordering DESC
+          ORDER BY ${getOrderings(query, locationCols, filterCols)}
           LIMIT ?
           OFFSET ? 
       )
@@ -359,6 +359,52 @@ function getFiltersCondition(
         `data."${groupName}" IN (${placeholders(filterItems)})`
     )
     .join(' AND ');
+}
+
+function getOrderings(
+  query: DataSetQuery,
+  locationCols: string[],
+  filterCols: string[]
+): string[] {
+  const orderings: string[] = [];
+
+  if (query.sort) {
+    // Remove quotes wrapping column name
+    const allowedFilterCols = filterCols.map((col) => col.slice(1, -1));
+    const allowedGeographicLevelCols = pickBy(geographicLevelColumns, (col) =>
+      locationCols.includes(col.code)
+    );
+
+    query.sort.forEach((sort) => {
+      const direction = sort.order === 'Desc' ? 'DESC' : 'ASC';
+
+      if (sort.name === 'TimePeriod') {
+        orderings.push(`time_periods.ordering ${direction}`);
+        return;
+      }
+
+      if (allowedGeographicLevelCols[sort.name]) {
+        orderings.push(
+          `${allowedGeographicLevelCols[sort.name].name} ${direction}`
+        );
+        return;
+      }
+
+      if (allowedFilterCols.includes(sort.name)) {
+        orderings.push(`${sort.name} ${direction}`);
+        return;
+      }
+
+      // TODO: Add error handling for invalid fields that cannot be ordered
+    });
+  }
+
+  // Default to ordering by descending time periods
+  if (!orderings.length) {
+    return ['time_periods.ordering DESC'];
+  }
+
+  return orderings;
 }
 
 async function getLocationIds(

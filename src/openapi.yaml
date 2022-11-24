@@ -309,7 +309,31 @@ components:
           description: The IDs or codes (if available) of locations to filter results by.
           items:
             type: string
+        sort:
+          type: array
+          description: | 
+            List of sorts to apply to results. Sorts at the start of the list will be applied first.
+            By default, results are sorted by time period in descending order.
+          items:
+            $ref: '#/components/schemas/DataSetQuerySort'
       additionalProperties: false
+    DataSetQuerySort:
+      type: object
+      description: A sorting configuration to sort query results by.
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          description: | 
+            The name of the field to sort. This can be `TimePeriod`, a geographic level e.g. `Country` or a filter.
+        order:
+          type: string
+          description: The direction that the field should be ordered. Defaults to ascending if none is set.
+          default: Asc
+          enum:
+            - Asc
+            - Desc
     DataSetViewModel:
       type: object
       description: Describes and provides high-level information about a data set.
