@@ -309,10 +309,6 @@ components:
           description: The IDs or codes (if available) of locations to filter results by.
           items:
             type: string
-        showMeta:
-          type: boolean
-          description: Include the data set metadata associated with the results in the response.
-          default: false
       additionalProperties: false
     DataSetViewModel:
       type: object
@@ -345,41 +341,6 @@ components:
         _links:
           $ref: '#/components/schemas/LinksViewModel'
       additionalProperties: false
-    DataSetResultsMetaViewModel:
-      type: object
-      additionalProperties: false
-      description: The metadata associated with the data set query results.
-      required:
-        - filters
-        - indicators
-        - locations
-        - timePeriodRange
-      properties:
-        filters:
-          type: array
-          description: The filters associated with the data set query results.
-          items:
-            $ref: '#/components/schemas/FilterMetaViewModel'
-        indicators:
-          type: array
-          description: The indicators associated with the data set query results.
-          items:
-            $ref: '#/components/schemas/IndicatorMetaViewModel'
-        locations:
-          type: object
-          description: The locations associated with the data set query results.
-          additionalProperties:
-            type: array
-            items:
-              $ref: '#/components/schemas/LocationMetaViewModel'
-        timePeriodRange:
-          type: array
-          description: |
-            The complete range of time periods between the requested start and end time periods.
-            
-            Note that this represents a complete time series so it may include time periods that do not associated results.
-          items:
-            $ref: '#/components/schemas/TimePeriodMetaViewModel'
     DataSetResultsViewModel:
       type: object
       description: Contains the results of a data set query, and any associated footnotes or meta (where applicable).
@@ -389,8 +350,6 @@ components:
         - results
         - _links
       properties:
-        meta:
-          $ref: '#/components/schemas/DataSetResultsMetaViewModel'
         footnotes:
           type: array
           description: The footnotes relevant to the data set query results.
