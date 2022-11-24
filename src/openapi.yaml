@@ -850,6 +850,8 @@ components:
           format: int32
           description: The year that the time period relates to.
     TimePeriodMetaViewModel:
+      type: object
+      description: A representation of a time period including a human-readable label.
       allOf:
         - $ref: '#/components/schemas/TimePeriodViewModel'
         - type: object
