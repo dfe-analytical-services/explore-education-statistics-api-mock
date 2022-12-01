@@ -3,6 +3,7 @@
     "allowJs": true,
     "alwaysStrict": true,
     "allowSyntheticDefaultImports": true,
+    "noFallthroughCasesInSwitch": true,
     "module": "commonjs",
     "moduleResolution": "node",
     "noEmit": true,

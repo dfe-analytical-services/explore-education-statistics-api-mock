@@ -1,16 +1,15 @@
 import Hashids from 'hashids';
-import { compact, groupBy, keyBy, mapValues, pickBy } from 'lodash';
+import { compact, keyBy, mapValues, pickBy } from 'lodash';
 import Papa from 'papaparse';
 import {
   DataSetQuery,
   DataSetResultsViewModel,
-  GeographicLevel,
   PagingViewModel,
 } from '../schema';
-import { DataRow, Filter, Indicator } from '../types/dbSchemas';
+import { DataRow, Indicator } from '../types/dbSchemas';
 import Database from './Database';
-import getDataSetDir from './getDataSetDir';
 import { tableFile } from './dataSetPaths';
+import getDataSetDir from './getDataSetDir';
 import {
   createFilterIdHasher,
   createIndicatorIdHasher,
@@ -19,12 +18,11 @@ import {
 import {
   csvLabelsToGeographicLevels,
   geographicLevelColumns,
-  geographicLevelCsvLabels,
 } from './locationConstants';
+import parseDataSetQueryConditions from './parseDataSetQueryConditions';
+import { parseIdLikeStrings } from './parseIdLikeStrings';
 import parseTimePeriodCode from './parseTimePeriodCode';
-import { timePeriodCodeIdentifiers } from './timePeriodConstants';
-
-type FilterItem = Pick<Filter, 'id' | 'label' | 'group_name'>;
+import { indexPlaceholders } from './queryUtils';
 
 interface DataRowWithLocation extends DataRow {
   location_id: number;
@@ -148,7 +146,6 @@ interface RunQueryReturn<TRow extends DataRow = DataRow> {
   locationCols: string[];
   filterCols: string[];
   indicators: Indicator[];
-  filterItems: FilterItem[];
 }
 
 async function runQuery<TRow extends DataRow>(
@@ -166,49 +163,36 @@ async function runQuery<TRow extends DataRow>(
   } = options;
 
   const { page, pageSize } = query;
-  const filterItemIds = parseIds(query.filterItems ?? [], filterIdHasher);
-  const indicatorIds = parseIdStrings(
+
+  const indicatorIds = parseIdLikeStrings(
     query.indicators ?? [],
     indicatorIdHasher
   );
 
-  const [locationCols, filterCols, indicators, filterItems] = await Promise.all(
-    [
-      getLocationColumns(db, dataSetDir),
-      getFilterColumns(db, dataSetDir),
-      getIndicators(db, dataSetDir, indicatorIds),
-      getFilterItems(db, dataSetDir, filterItemIds),
-    ]
-  );
+  const [locationCols, filterCols, indicators] = await Promise.all([
+    getLocationColumns(db, dataSetDir),
+    getFilterColumns(db, dataSetDir),
+    getIndicators(db, dataSetDir, indicatorIds),
+  ]);
 
-  const locationIds = await getLocationIds(
+  const where = await parseDataSetQueryConditions(
     db,
     dataSetDir,
     query,
     locationCols,
+    filterIdHasher,
     locationIdHasher
   );
 
-  const groupedFilterItems = groupBy(
-    filterItems,
-    (filter) => filter.group_name
-  );
-
-  const whereCondition = compact([
-    getTimePeriodCondition(query),
-    locationIds.length > 0
-      ? `locations.id IN (${placeholders(locationIds)})`
-      : '',
-    getFiltersCondition(dataSetDir, groupedFilterItems),
-  ]).join(' AND ');
+  console.log(where);
 
   const totalQuery = `
       SELECT count(*) AS total
       FROM '${tableFile(dataSetDir, 'data')}' AS data
-      JOIN '${tableFile(dataSetDir, 'locations')}' AS locations
-        ON (${locationCols.map((col) => `locations.${col}`)})
-            = (${locationCols.map((col) => `data.${col}`)})
-      ${whereCondition ? `WHERE ${whereCondition}` : ''}
+          JOIN '${tableFile(dataSetDir, 'locations')}' AS locations
+      ON (${locationCols.map((col) => `locations.${col}`)})
+          = (${locationCols.map((col) => `data.${col}`)})
+          ${where.fragment ? `WHERE ${where.fragment}` : ''}
   `;
 
   // We essentially split this query into two parts:
@@ -241,7 +225,7 @@ async function runQuery<TRow extends DataRow>(
           JOIN '${tableFile(dataSetDir, 'time_periods')}' AS time_periods
             ON (time_periods.year, time_periods.identifier) 
                 = (data.time_period, data.time_identifier)
-          ${whereCondition ? `WHERE ${whereCondition}` : ''}
+          ${where.fragment ? `WHERE ${where.fragment}` : ''}
           ORDER BY ${getOrderings(query, locationCols, filterCols)}
           LIMIT ?
           OFFSET ? 
@@ -255,8 +239,7 @@ async function runQuery<TRow extends DataRow>(
           debug ? `concat(${col}.id, '::', ${col}.label)` : `${col}.id`
         } AS ${col}`;
       })})
-      FROM data
-      ${filterCols
+      FROM data ${filterCols
         .map(
           (filter) =>
             `JOIN '${tableFile(dataSetDir, 'filters')}' AS ${filter} 
@@ -265,6 +248,8 @@ async function runQuery<TRow extends DataRow>(
         )
         .join('\n')}
   `;
+
+  console.log(resultsQuery);
 
   // Tried cursor/keyset pagination, but it's probably too difficult to implement.
   // Might need to revisit this in the future if performance is an issue.
@@ -280,17 +265,9 @@ async function runQuery<TRow extends DataRow>(
   //   not as fast on paper. Cursor pagination may be a premature optimisation.
   const pageOffset = (page - 1) * pageSize;
 
-  const baseParams = [
-    ...getTimePeriodParams(query),
-    ...locationIds,
-    ...Object.values(groupedFilterItems).flatMap((items) =>
-      items.map((item) => item.label)
-    ),
-  ];
-
   const [{ total }, results] = await Promise.all([
-    db.first<{ total: number }>(totalQuery, baseParams),
-    db.all<TRow>(resultsQuery, [...baseParams, pageSize, pageOffset]),
+    db.first<{ total: number }>(totalQuery, where.params),
+    db.all<TRow>(resultsQuery, [...where.params, pageSize, pageOffset]),
   ]);
 
   return {
@@ -299,66 +276,7 @@ async function runQuery<TRow extends DataRow>(
     locationCols,
     filterCols,
     indicators,
-    filterItems,
   };
-}
-
-function getTimePeriodCondition({ timePeriod }: DataSetQuery): string {
-  const conditions = [];
-
-  // TODO: Implement start/end codes properly
-
-  if (timePeriod?.startCode) {
-    conditions.push('data.time_identifier = ?');
-  }
-
-  if (timePeriod?.startYear) {
-    conditions.push('data.time_period >= ?');
-  }
-
-  if (timePeriod?.endYear) {
-    conditions.push('data.time_period <= ?');
-  }
-
-  return conditions.join(' AND ');
-}
-
-function getTimePeriodParams({
-  timePeriod,
-}: DataSetQuery): (string | number)[] {
-  const params = [];
-
-  // TODO: Implement start/end codes properly
-
-  if (timePeriod?.startCode) {
-    params.push(timePeriodCodeIdentifiers[timePeriod.startCode]);
-  }
-
-  if (timePeriod?.startYear) {
-    params.push(timePeriod.startYear);
-  }
-
-  if (timePeriod?.endYear) {
-    params.push(timePeriod.endYear);
-  }
-
-  return params;
-}
-
-function getFiltersCondition(
-  dataSetDir: string,
-  groupedFilterItems: Dictionary<FilterItem[]>
-): string {
-  if (!Object.keys(groupedFilterItems).length) {
-    return '';
-  }
-
-  return Object.entries(groupedFilterItems)
-    .map(
-      ([groupName, filterItems]) =>
-        `data."${groupName}" IN (${placeholders(filterItems)})`
-    )
-    .join(' AND ');
 }
 
 function getOrderings(
@@ -407,42 +325,6 @@ function getOrderings(
   return orderings;
 }
 
-async function getLocationIds(
-  db: Database,
-  dataSetDir: string,
-  query: DataSetQuery,
-  locationCols: string[],
-  locationIdHasher: Hashids
-): Promise<number[]> {
-  const allowedGeographicLevelCols = pickBy(geographicLevelColumns, (col) =>
-    locationCols.includes(col.code)
-  );
-  const ids = parseIdStrings(query.locations ?? [], locationIdHasher);
-  const idPlaceholders = indexPlaceholders(ids);
-
-  if (!ids.length) {
-    return [];
-  }
-
-  const locations = await db.all<{ id: number }>(
-    `
-      SELECT id
-      FROM '${tableFile(dataSetDir, 'locations')}'
-      WHERE id::VARCHAR IN (${idPlaceholders})
-        OR ${Object.entries(allowedGeographicLevelCols)
-          .map(([geographicLevel, col]) => {
-            const label =
-              geographicLevelCsvLabels[geographicLevel as GeographicLevel];
-
-            return `(geographic_level = '${label}' AND ${col.code} IN (${idPlaceholders}))`;
-          })
-          .join(' OR ')}`,
-    ids
-  );
-
-  return locations.map((location) => location.id);
-}
-
 async function getLocationColumns(
   db: Database,
   dataSetDir: string
@@ -487,57 +369,4 @@ async function getIndicators(
         OR name IN (${idPlaceholders});`,
     indicatorIds
   );
-}
-
-async function getFilterItems(
-  db: Database,
-  dataSetDir: string,
-  filterItemIds: number[]
-): Promise<FilterItem[]> {
-  if (!filterItemIds.length) {
-    return [];
-  }
-
-  return await db.all<Filter>(
-    `SELECT *
-        FROM '${tableFile(dataSetDir, 'filters')}'
-        WHERE id IN (${placeholders(filterItemIds)});
-    `,
-    filterItemIds
-  );
-}
-
-function parseIds(ids: string[], idHasher: Hashids): number[] {
-  return compact(
-    ids.map((id) => {
-      try {
-        return idHasher.decode(id)[0] as number;
-      } catch (err) {
-        return Number.NaN;
-      }
-    })
-  );
-}
-
-function parseIdStrings(ids: string[], idHasher: Hashids): string[] {
-  return compact(
-    ids.map((id) => {
-      try {
-        return idHasher.decode(id)[0].toString();
-      } catch (err) {
-        // If the id is NaN, then allow this as it could be a
-        // code or other identifier that can be used instead.
-        // Plain numbers shouldn't be accepted to avoid
-        return Number.isNaN(Number(id)) ? id : '';
-      }
-    })
-  );
-}
-
-function placeholders(value: unknown[]): string[] {
-  return value.map(() => '?');
-}
-
-function indexPlaceholders(value: unknown[]): string[] {
-  return value.map((_, index) => `$${index + 1}`);
 }
