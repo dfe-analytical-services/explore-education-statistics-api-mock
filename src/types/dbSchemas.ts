@@ -12,10 +12,10 @@ export interface TimePeriod {
   identifier: string;
 }
 
-export interface Location {
+export type Location = {
+  id: number;
   geographic_level: GeographicLevel;
-  [column: string]: string;
-}
+} & Dictionary<string>;
 
 export interface Filter {
   id: number;
