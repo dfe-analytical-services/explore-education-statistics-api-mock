@@ -288,34 +288,178 @@ components:
       type: object
       description: A query for data from a data set matching specific facets.
       required:
+        - query
         - indicators
       properties:
-        timePeriod:
-          $ref: '#/components/schemas/TimePeriodQuery'
-        filterItems:
-          type: array
-          description: The IDs of filter items to filter results by.
-          items:
-            type: string
-            format: uuid
+        query:
+          type: object
+          description: A query to match results by.
+          oneOf:
+            - $ref: '#/components/schemas/DataSetQueryCriteria'
+            - $ref: '#/components/schemas/DataSetQueryConditionAnd'
+            - $ref: '#/components/schemas/DataSetQueryConditionOr'
+            - $ref: '#/components/schemas/DataSetQueryConditionNot'
         indicators:
           type: array
-          description: The IDs or names of indicators to filter results by.
-          items:
-            type: string
-            format: uuid
-        locations:
-          type: array
-          description: The IDs or codes (if available) of locations to filter results by.
+          description: The IDs or names of indicators to get values for.
           items:
             type: string
         sort:
           type: array
-          description: | 
+          description: |
             List of sorts to apply to results. Sorts at the start of the list will be applied first.
             By default, results are sorted by time period in descending order.
           items:
             $ref: '#/components/schemas/DataSetQuerySort'
+      additionalProperties: false
+    DataSetQueryConditionAnd:
+      type: object
+      description: |
+        A query condition that can only be true when all its sub-clauses resolve to true. This is 
+        equivalent to the `AND` operator in SQL.
+      required:
+        - and
+      properties:
+        and:
+          type: array
+          description: The list of sub-clauses.
+          items:
+            oneOf:
+              - $ref: '#/components/schemas/DataSetQueryCriteria'
+              - $ref: '#/components/schemas/DataSetQueryConditionAnd'
+              - $ref: '#/components/schemas/DataSetQueryConditionOr'
+              - $ref: '#/components/schemas/DataSetQueryConditionNot'
+      additionalProperties: false
+    DataSetQueryConditionOr:
+      type: object
+      description: |
+        A query condition that can only be true when one of its sub-clauses resolve to true. This
+        is equivalent to the `OR` operator in SQL.
+      required:
+        - or
+      properties:
+        or:
+          type: array
+          description: The list of sub-clauses.
+          items:
+            oneOf:
+              - $ref: '#/components/schemas/DataSetQueryCriteria'
+              - $ref: '#/components/schemas/DataSetQueryConditionAnd'
+              - $ref: '#/components/schemas/DataSetQueryConditionOr'
+              - $ref: '#/components/schemas/DataSetQueryConditionNot'
+      additionalProperties: false
+    DataSetQueryConditionNot:
+      type: object
+      description: |
+        A query condition that can only be true when its sub-clause resolves to false. This is 
+        equivalent to the `NOT` operator in SQL.
+      required:
+        - not
+      properties:
+        not:
+          description: The sub-clause that must not be true.
+          oneOf:
+            - $ref: '#/components/schemas/DataSetQueryCriteria'
+            - $ref: '#/components/schemas/DataSetQueryConditionAnd'
+            - $ref: '#/components/schemas/DataSetQueryConditionOr'
+            - $ref: '#/components/schemas/DataSetQueryConditionNot'
+      additionalProperties: false
+    DataSetQueryCriteria:
+      type: object
+      description: A set of criteria to match query results to. All parts must resolve to true to match.
+      properties:
+        filters:
+          $ref: '#/components/schemas/DataSetQueryCriteriaFilters'
+        locations:
+          $ref: '#/components/schemas/DataSetQueryCriteriaLocations'
+        geographicLevels:
+          $ref: '#/components/schemas/DataSetQueryCriteriaGeographicLevels'
+        timePeriods:
+          $ref: '#/components/schemas/DataSetQueryCriteriaTimePeriods'
+      additionalProperties: false
+    DataSetQueryCriteriaFilters:
+      type: object
+      description: The filter IDs to match results by.
+      properties:
+        eq:
+          type: string
+          description: Results must have a filter matching the given ID.
+        notEq:
+          type: string
+          description: Results must not have a filter that matches the given ID.
+        in:
+          type: array
+          description: Results must have at least one filter matching the given IDs.
+          items:
+            type: string
+        notIn:
+          type: array
+          description: Results must not have any filters matching the given IDs.
+          items:
+            type: string
+      additionalProperties: false
+    DataSetQueryCriteriaTimePeriods:
+      type: object
+      description: The time periods to match results by.
+      properties:
+        eq:
+          $ref: '#/components/schemas/TimePeriodViewModel'
+        notEq:
+          $ref: '#/components/schemas/TimePeriodViewModel'
+        gte:
+          $ref: '#/components/schemas/TimePeriodViewModel'
+        gt:
+          $ref: '#/components/schemas/TimePeriodViewModel'
+        lte:
+          $ref: '#/components/schemas/TimePeriodViewModel'
+        lt:
+          $ref: '#/components/schemas/TimePeriodViewModel'
+        in:
+          type: array
+          items:
+            $ref: '#/components/schemas/TimePeriodViewModel'
+        notIn:
+          type: array
+          items:
+            $ref: '#/components/schemas/TimePeriodViewModel'
+      additionalProperties: false
+    DataSetQueryCriteriaGeographicLevels:
+      type: object
+      description: The geographic levels to match results by.
+      properties:
+        eq:
+          $ref: '#/components/schemas/GeographicLevel'
+        notEq:
+          $ref: '#/components/schemas/GeographicLevel'
+        in:
+          type: array
+          items:
+            $ref: '#/components/schemas/GeographicLevel'
+        notIn:
+          type: array
+          items:
+            $ref: '#/components/schemas/GeographicLevel'
+      additionalProperties: false
+    DataSetQueryCriteriaLocations:
+      type: object
+      description: The location IDs or codes to match results by.
+      properties:
+        eq:
+          type: string
+          description: Results must have a location matching the given ID.
+        notEq:
+          type: string
+          description: Results must not have a location that matches the given ID.
+        in:
+          type: array
+          description: Results must have at least one location matching the given IDs.
+          items:
+            type: string
+        notIn:
+          type: array
+          description: Results must not have any locations matching the given IDs.
+          items:
+            type: string
       additionalProperties: false
     DataSetQuerySort:
       type: object
@@ -325,7 +469,7 @@ components:
       properties:
         name:
           type: string
-          description: | 
+          description: |
             The name of the field to sort. This can be `TimePeriod`, a geographic level e.g. `Country` or a filter.
         order:
           type: string
@@ -411,7 +555,7 @@ components:
           description: The ID of the row.
         filters:
           type: object
-          description: | 
+          description: |
             A dictionary containing the row's associated filters. The key is the filter name and the value is ID of the filter item.
           additionalProperties:
             type: string
@@ -608,7 +752,7 @@ components:
         href: 'https://url-to-resource'
     LinksViewModel:
       type: object
-      description: | 
+      description: |
         A map of links to related resources/endpoints. A link to the current resource (i.e. `self`) is always provided.
       required:
         - self
@@ -861,28 +1005,6 @@ components:
             label:
               type: string
               description: The time period in human-readable format.
-    TimePeriodQuery:
-      type: object
-      description: A query for data matching a specific start and end time.
-      required:
-        - startYear
-        - startCode
-        - endYear
-        - endCode
-      properties:
-        startYear:
-          type: integer
-          format: int32
-          description: The starting year to filter results by.
-        startCode:
-          $ref: '#/components/schemas/TimePeriodCode'
-        endYear:
-          type: integer
-          format: int32
-          description: The ending year to filter results by.
-        endCode:
-          $ref: '#/components/schemas/TimePeriodCode'
-      additionalProperties: false
     Unit:
       enum:
         - ''
