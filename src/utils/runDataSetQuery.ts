@@ -187,10 +187,10 @@ async function runQuery<TRow extends DataRow>(
   const totalQuery = `
       SELECT count(*) AS total
       FROM '${tableFile(dataSetDir, 'data')}' AS data
-          JOIN '${tableFile(dataSetDir, 'locations')}' AS locations
-      ON (${locationCols.map((col) => `locations.${col}`)})
+      JOIN '${tableFile(dataSetDir, 'locations')}' AS locations
+        ON (${locationCols.map((col) => `locations.${col}`)})
           = (${locationCols.map((col) => `data.${col}`)})
-          ${where.fragment ? `WHERE ${where.fragment}` : ''}
+      ${where.fragment ? `WHERE ${where.fragment}` : ''}
   `;
 
   // We essentially split this query into two parts:
