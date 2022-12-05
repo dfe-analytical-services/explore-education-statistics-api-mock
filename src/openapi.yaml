@@ -330,6 +330,16 @@ components:
               - $ref: '#/components/schemas/DataSetQueryConditionOr'
               - $ref: '#/components/schemas/DataSetQueryConditionNot'
       additionalProperties: false
+      example:
+        and:
+          - filters:
+              in: [filter1, filter2]
+          - locations:
+              eq: location1
+          - timePeriods:
+              eq:
+                code: AY
+                year: 202122
     DataSetQueryConditionOr:
       type: object
       description: |
@@ -348,6 +358,26 @@ components:
               - $ref: '#/components/schemas/DataSetQueryConditionOr'
               - $ref: '#/components/schemas/DataSetQueryConditionNot'
       additionalProperties: false
+      example:
+        or:
+          - filters:
+              in: [filter1, filter2]
+            timePeriods:
+              gte:
+                code: AY
+                year: 201617
+              lte:
+                code: AY
+                year: 201819
+          - filters:
+              in: [filter1, filter2]
+            timePeriods:
+              gte:
+                code: AY
+                year: 202021
+              lte:
+                code: AY
+                year: 202223
     DataSetQueryConditionNot:
       type: object
       description: |
@@ -364,6 +394,12 @@ components:
             - $ref: '#/components/schemas/DataSetQueryConditionOr'
             - $ref: '#/components/schemas/DataSetQueryConditionNot'
       additionalProperties: false
+      example:
+        not:
+          - filters:
+              in: [filter1, filter2]
+          - locations:
+              eq: location1
     DataSetQueryCriteria:
       type: object
       description: A set of criteria to match query results to. All parts must resolve to true to match.
@@ -379,6 +415,22 @@ components:
         timePeriods:
           $ref: '#/components/schemas/DataSetQueryCriteriaTimePeriods'
       additionalProperties: false
+      example:
+        filters:
+          in: [filter1, filter2]
+        locations:
+          notIn: [location1, location2]
+        parentLocations:
+          eq: location3
+        geographicLevels:
+          eq: LocalAuthority
+        timePeriods:
+          gte:
+            code: AY
+            year: 201617
+          lte:
+            code: AY
+            year: 202021
     DataSetQueryCriteriaFilters:
       type: object
       description: The filter IDs to match results by.
