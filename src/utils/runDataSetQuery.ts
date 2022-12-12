@@ -47,7 +47,6 @@ export async function runDataSetQuery(
         { ...query, page, pageSize },
         {
           debug,
-          filterIdHasher,
         }
       );
 
@@ -135,9 +134,6 @@ export async function runDataSetQueryToCsv(
 interface RunQueryOptions {
   debug?: boolean;
   formatCsv?: boolean;
-  filterIdHasher?: Hashids;
-  locationIdHasher?: Hashids;
-  indicatorIdHasher?: Hashids;
 }
 
 interface RunQueryReturn<TRow extends DataRow = DataRow> {
@@ -154,19 +150,13 @@ async function runQuery<TRow extends DataRow>(
   query: DataSetQuery & { page: number; pageSize: number },
   options: RunQueryOptions = {}
 ): Promise<RunQueryReturn<TRow>> {
-  const {
-    debug,
-    formatCsv,
-    filterIdHasher = createFilterIdHasher(dataSetDir),
-    locationIdHasher = createLocationIdHasher(dataSetDir),
-    indicatorIdHasher = createIndicatorIdHasher(dataSetDir),
-  } = options;
+  const { debug, formatCsv } = options;
 
   const { page, pageSize } = query;
 
   const indicatorIds = parseIdLikeStrings(
     query.indicators ?? [],
-    indicatorIdHasher
+    createIndicatorIdHasher(dataSetDir)
   );
 
   const [locationCols, filterCols, indicators] = await Promise.all([
@@ -179,9 +169,7 @@ async function runQuery<TRow extends DataRow>(
     db,
     dataSetDir,
     query,
-    locationCols,
-    filterIdHasher,
-    locationIdHasher
+    locationCols
   );
 
   const totalQuery = `

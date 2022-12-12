@@ -25,6 +25,7 @@ import {
 import { Filter, Location } from '../types/dbSchemas';
 import Database from './Database';
 import { tableFile } from './dataSetPaths';
+import { createFilterIdHasher, createLocationIdHasher } from './idHashers';
 import {
   columnsToGeographicLevel,
   geographicLevelColumns,
@@ -61,9 +62,7 @@ export default async function parseDataSetQueryConditions(
   db: Database,
   dataSetDir: string,
   { query }: DataSetQuery,
-  locationCols: string[],
-  filterIdHasher: Hashids,
-  locationIdHasher: Hashids
+  locationCols: string[]
 ): Promise<QueryFragmentParams> {
   const rawFilterItemIdSet = new Set<string>();
   const rawLocationIdSet = new Set<string>();
@@ -97,15 +96,9 @@ export default async function parseDataSetQueryConditions(
         db,
         dataSetDir,
         [...rawLocationIdSet],
-        locationIdHasher,
         locationCols
       ),
-      createFiltersParser(
-        db,
-        dataSetDir,
-        [...rawFilterItemIdSet],
-        filterIdHasher
-      ),
+      createFiltersParser(db, dataSetDir, [...rawFilterItemIdSet]),
     ]);
 
   // Perform a second pass, which actually constructs the query.
@@ -237,9 +230,9 @@ function createParser<
 async function createFiltersParser(
   db: Database,
   dataSetDir: string,
-  rawFilterItemIds: string[],
-  filterIdHasher: Hashids
+  rawFilterItemIds: string[]
 ): Promise<CriteriaParser<DataSetQueryCriteriaFilters>> {
+  const filterIdHasher = createFilterIdHasher(dataSetDir);
   const filterItemIds = parseIdHashes(rawFilterItemIds, filterIdHasher);
   const filterItemIdsByRawId = zipObject(rawFilterItemIds, filterItemIds);
 
@@ -303,12 +296,12 @@ async function createLocationParsers(
   db: Database,
   dataSetDir: string,
   rawLocationIds: string[],
-  locationIdHasher: Hashids,
   locationCols: string[]
 ): Promise<{
   locationsParser: CriteriaParser<DataSetQueryCriteriaLocations>;
   parentLocationsParser: CriteriaParser<DataSetQueryCriteriaLocations>;
 }> {
+  const locationIdHasher = createLocationIdHasher(dataSetDir);
   const locationIds = parseIdLikeStrings(rawLocationIds, locationIdHasher);
   const locationIdsByRawId = zipObject(rawLocationIds, locationIds);
 
