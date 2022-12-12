@@ -544,16 +544,18 @@ async function getFilterItems(
   dataSetDir: string,
   filterItemIds: number[]
 ): Promise<FilterItem[]> {
-  if (!filterItemIds.length) {
+  const ids = compact(filterItemIds);
+
+  if (!ids.length) {
     return [];
   }
 
   return await db.all<Filter>(
     `SELECT id, label, group_name
         FROM '${tableFile(dataSetDir, 'filters')}'
-        WHERE id IN (${placeholders(filterItemIds)});
+        WHERE id IN (${placeholders(ids)});
     `,
-    filterItemIds
+    ids
   );
 }
 
@@ -563,11 +565,13 @@ async function getLocations(
   locationIds: string[],
   locationCols: string[]
 ): Promise<Location[]> {
-  if (!locationIds.length) {
+  const ids = compact(locationIds);
+
+  if (!ids.length) {
     return [];
   }
 
-  const idPlaceholders = indexPlaceholders(locationIds);
+  const idPlaceholders = indexPlaceholders(ids);
   const allowedGeographicLevelCols = pickBy(geographicLevelColumns, (col) =>
     locationCols.includes(col.code)
   );
@@ -585,6 +589,6 @@ async function getLocations(
             return `(geographic_level = '${label}' AND ${col.code} IN (${idPlaceholders}))`;
           })
           .join(' OR ')}`,
-    locationIds
+    ids
   );
 }

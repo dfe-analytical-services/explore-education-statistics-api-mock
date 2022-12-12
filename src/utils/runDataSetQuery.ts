@@ -352,17 +352,19 @@ async function getIndicators(
   dataSetDir: string,
   indicatorIds: string[]
 ): Promise<Indicator[]> {
-  if (!indicatorIds.length) {
+  const ids = compact(indicatorIds);
+
+  if (!ids.length) {
     return [];
   }
 
-  const idPlaceholders = indexPlaceholders(indicatorIds);
+  const idPlaceholders = indexPlaceholders(ids);
 
   return await db.all<Indicator>(
     `SELECT *
      FROM '${tableFile(dataSetDir, 'indicators')}'
      WHERE id::VARCHAR IN (${idPlaceholders}) 
         OR name IN (${idPlaceholders});`,
-    indicatorIds
+    ids
   );
 }
