@@ -29,7 +29,7 @@ import {
   geographicLevelCsvLabels,
 } from './locationConstants';
 import parseIdHashes from './parseIdHashes';
-import { parseIdLikeStrings } from './parseIdLikeStrings';
+import parseIdLikeStrings from './parseIdLikeStrings';
 import { indexPlaceholders, placeholders } from './queryUtils';
 import { timePeriodCodeIdentifiers } from './timePeriodConstants';
 

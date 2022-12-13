@@ -1,11 +1,13 @@
-import { compact, keyBy, mapValues, pickBy } from 'lodash';
+import { compact, keyBy, mapValues, pickBy, uniq } from 'lodash';
 import Papa from 'papaparse';
+import { ValidationError } from '../errors';
 import {
   DataSetQuery,
   DataSetResultsViewModel,
   PagingViewModel,
 } from '../schema';
 import { DataRow, Indicator } from '../types/dbSchemas';
+import { arrayErrors } from '../validations/errors';
 import { tableFile } from './dataSetPaths';
 import DataSetQueryState from './DataSetQueryState';
 import getDataSetDir from './getDataSetDir';
@@ -15,7 +17,7 @@ import {
   geographicLevelColumns,
 } from './locationConstants';
 import parseDataSetQueryConditions from './parseDataSetQueryConditions';
-import { parseIdLikeStrings } from './parseIdLikeStrings';
+import parseIdLikeStrings from './parseIdLikeStrings';
 import parseTimePeriodCode from './parseTimePeriodCode';
 import { indexPlaceholders } from './queryUtils';
 
@@ -46,6 +48,14 @@ export async function runDataSetQuery(
       indicator.name.toString()
     );
 
+    if (results.length === 0) {
+      state.appendWarning('query', {
+        message:
+          'No results matched the query criteria. You may need to refine your query.',
+        code: 'results.empty',
+      });
+    }
+
     return {
       paging: {
         page,
@@ -54,18 +64,7 @@ export async function runDataSetQuery(
         totalPages: pageSize > 0 ? Math.ceil(total / pageSize) : pageSize,
       },
       footnotes: [],
-      warnings:
-        results.length === 0
-          ? {
-              query: [
-                {
-                  message:
-                    'No results matched the query criteria. You may need to refine your query.',
-                  code: 'NoResults',
-                },
-              ],
-            }
-          : undefined,
+      warnings: state.getWarnings(),
       results: results.map((result) => {
         return {
           filters: unquotedFilterCols.reduce<Dictionary<string>>((acc, col) => {
@@ -327,22 +326,49 @@ async function getFilterColumns({
 }
 
 async function getIndicators(
-  { db, dataSetDir }: DataSetQueryState,
+  state: DataSetQueryState,
   indicatorIds: string[]
 ): Promise<Indicator[]> {
+  const { db, indicatorIdHasher, tableFile } = state;
+
+  if (!indicatorIds.length) {
+    throw ValidationError.atPath('indicators', arrayErrors.notEmpty);
+  }
+
   const ids = compact(indicatorIds);
 
   if (!ids.length) {
-    return [];
+    throw ValidationError.atPath('indicators', arrayErrors.noBlankStrings);
   }
 
   const idPlaceholders = indexPlaceholders(ids);
 
-  return await db.all<Indicator>(
+  const indicators = await db.all<Indicator>(
     `SELECT *
-     FROM '${tableFile(dataSetDir, 'indicators')}'
+     FROM '${tableFile('indicators')}'
      WHERE id::VARCHAR IN (${idPlaceholders}) 
         OR name IN (${idPlaceholders});`,
     ids
   );
+
+  if (indicators.length < ids.length) {
+    const allowed = indicators.reduce<Set<string>>((acc, i) => {
+      acc.add(indicatorIdHasher.encode(i.id));
+      acc.add(i.name);
+
+      return acc;
+    }, new Set());
+
+    const missing = uniq(ids.filter((id) => !allowed.has(id)));
+
+    throw ValidationError.atPath('indicators', {
+      message: 'Could not find all indicators.',
+      code: 'indicators.notFound',
+      details: {
+        missing,
+      },
+    });
+  }
+
+  return indicators;
 }

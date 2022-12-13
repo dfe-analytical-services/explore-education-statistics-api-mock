@@ -25,6 +25,14 @@ export default class ValidationError extends ApiError {
       errors: normalizeOpenApiValidationErrors(error.errors),
     });
   }
+
+  public static atPath(path: string, error: ErrorViewModel): ValidationError {
+    return new ValidationError({
+      errors: {
+        [path]: [error],
+      },
+    });
+  }
 }
 
 function normalizeOpenApiValidationErrors(errors: unknown[]): ErrorDictionary {

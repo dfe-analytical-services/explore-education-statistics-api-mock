@@ -253,17 +253,13 @@ components:
       content:
         application/json:
           schema:
-            type: array
-            items:
-              $ref: '#/components/schemas/ApiErrorViewModel'
+            $ref: '#/components/schemas/ApiErrorViewModel'
     NotFound:
       description: Not Found. Indicates that a specified resource could not be found.
       content:
         application/json:
           schema:
-            type: array
-            items:
-              $ref: '#/components/schemas/ApiErrorViewModel'
+            $ref: '#/components/schemas/ApiErrorViewModel'
   schemas:
     ApiErrorViewModel:
       type: object
@@ -302,6 +298,7 @@ components:
         indicators:
           type: array
           description: The IDs or names of indicators to get values for.
+          minItems: 1
           items:
             type: string
         sort:
