@@ -2,6 +2,7 @@ import bodyParser from 'body-parser';
 import compression from 'compression';
 import express, { ErrorRequestHandler, Request } from 'express';
 import * as OpenApiValidator from 'express-openapi-validator';
+import { BadRequest } from 'express-openapi-validator/dist/framework/types';
 import { mapValues } from 'lodash';
 import path from 'path';
 import { allDataSets, spcDataSets } from './mocks/dataSets';
@@ -11,7 +12,7 @@ import createPaginationLinks from './utils/createPaginationLinks';
 import createSelfLink from './utils/createSelfLink';
 import { dataSetDirs } from './utils/getDataSetDir';
 import getDataSetMeta from './utils/getDataSetMeta';
-import normalizeApiErrors from './utils/normalizeApiErrors';
+import createErrorDictionary from './errors/createErrorDictionary';
 import parsePaginationParams from './utils/parsePaginationParams';
 import { getHostUrl } from './utils/requestUtils';
 import { runDataSetQuery, runDataSetQueryToCsv } from './utils/runDataSetQuery';
@@ -234,14 +235,30 @@ app.get('/api/v1/data-sets/:dataSetId/file', (req, res) => {
 
 // Error handling
 
-const errorHandler: ErrorRequestHandler = (err, req, res, _) => {
+const errorHandler: ErrorRequestHandler<{}, ApiErrorViewModel> = (
+  err,
+  req,
+  res,
+  _
+) => {
   console.error(err);
-  res.status(err.status || 500).json({
-    status: err.status,
-    title: err.message,
-    type: err.name,
-    errors: normalizeApiErrors(err.errors),
-  });
+
+  const status = err.status || 500;
+
+  if (err instanceof BadRequest) {
+    res.status(status).json({
+      status,
+      title: 'There are validation errors with the request.',
+      type: err.name,
+      errors: createErrorDictionary(err.errors),
+    });
+  } else {
+    res.status(status).json({
+      status,
+      title: err.message,
+      type: err.name,
+    });
+  }
 };
 
 app.use(errorHandler);

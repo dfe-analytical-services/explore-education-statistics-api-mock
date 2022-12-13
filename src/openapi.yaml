@@ -672,13 +672,26 @@ components:
       description: |
         A dictionary of errors associated to a model.
 
-        - The key relates to a specific property on the model, or the entire model when it is an empty string (`""`). 
-        - The value is a list of error messages associated to the key.
+        - The key represents a path on the model, or the entire model when it is an empty string (`""`). 
+        - The value is a list of errors associated to the path.
       additionalProperties:
         type: array
         items:
+          $ref: '#/components/schemas/ErrorViewModel'
+    ErrorViewModel:
+      type: object
+      description: A representation of an error.
+      required:
+        - message
+      properties:
+        message:
           type: string
-          description: The error message.
+          description: The error's message.
+        code:
+          type: string
+          description: | 
+            The error's code. May be used for further diagnosis, or error handling in consuming code.
+      additionalProperties: false
     FilterItemMetaViewModel:
       type: object
       description: A filterable facet (or characteristic) of a data point.
