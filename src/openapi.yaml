@@ -585,12 +585,7 @@ components:
           items:
             $ref: '#/components/schemas/DataSetRowViewModel'
         warnings:
-          type: array
-          description: |
-            A list of potential issues with the query that may need to be resolved to provide better results.
-          items:
-            type: string
-            description: The warning message.
+          $ref: '#/components/schemas/WarningDictionary'
         _links:
           $ref: '#/components/schemas/LinksViewModel'
       additionalProperties: false
@@ -691,6 +686,10 @@ components:
           type: string
           description: | 
             The error's code. May be used for further diagnosis, or error handling in consuming code.
+        details:
+          type: object
+          description: Further details about the error.
+          additionalProperties: true
       additionalProperties: false
     FilterItemMetaViewModel:
       type: object
@@ -1077,3 +1076,34 @@ components:
         - pp
       type: string
       description: A numeric unit.
+    WarningDictionary:
+      type: object
+      description: |
+        A dictionary of warnings associated to a model.
+
+        - The key represents a path on the model, or the entire model when it is an empty string (`""`). 
+        - The value is a list of warnings associated to the path.
+      additionalProperties:
+        type: array
+        items:
+          $ref: '#/components/schemas/WarningViewModel'
+    WarningViewModel:
+      type: object
+      description: |
+        A warning that points to a potential issue. This is not a critical error, but may require attention to
+        get the desired response.
+      required:
+        - message
+        - code
+      properties:
+        message:
+          type: string
+          description: The warning message.
+        code:
+          type: string
+          description: The warning code. May be used for further diagnosis, or error handling in consuming code.
+        details:
+          type: object
+          description: Further details about the warning.
+          additionalProperties: true
+      additionalProperties: false

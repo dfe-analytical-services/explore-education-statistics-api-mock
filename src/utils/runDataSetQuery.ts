@@ -1,4 +1,3 @@
-import Hashids from 'hashids';
 import { compact, keyBy, mapValues, pickBy } from 'lodash';
 import Papa from 'papaparse';
 import {
@@ -65,9 +64,15 @@ export async function runDataSetQuery(
       footnotes: [],
       warnings:
         results.length === 0
-          ? [
-              'No results matched the query criteria. You may need to refine your query.',
-            ]
+          ? {
+              query: [
+                {
+                  message:
+                    'No results matched the query criteria. You may need to refine your query.',
+                  code: 'NoResults',
+                },
+              ],
+            }
           : undefined,
       results: results.map((result) => {
         return {
