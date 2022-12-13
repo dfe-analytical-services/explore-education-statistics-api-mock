@@ -6,14 +6,10 @@ import {
   PagingViewModel,
 } from '../schema';
 import { DataRow, Indicator } from '../types/dbSchemas';
-import Database from './Database';
 import { tableFile } from './dataSetPaths';
+import DataSetQueryState from './DataSetQueryState';
 import getDataSetDir from './getDataSetDir';
-import {
-  createFilterIdHasher,
-  createIndicatorIdHasher,
-  createLocationIdHasher,
-} from './idHashers';
+import { createIndicatorIdHasher } from './idHashers';
 import {
   csvLabelsToGeographicLevels,
   geographicLevelColumns,
@@ -33,16 +29,12 @@ export async function runDataSetQuery(
   { debug, page, pageSize }: { debug?: boolean; page: number; pageSize: number }
 ): Promise<Omit<DataSetResultsViewModel, '_links'>> {
   const dataSetDir = getDataSetDir(dataSetId);
-
-  const db = new Database();
-  const filterIdHasher = createFilterIdHasher(dataSetDir);
-  const locationIdHasher = createLocationIdHasher(dataSetDir);
+  const state = new DataSetQueryState(dataSetDir);
 
   try {
     const { results, total, filterCols, indicators } =
       await runQuery<DataRowWithLocation>(
-        db,
-        dataSetDir,
+        state,
         { ...query, page, pageSize },
         {
           debug,
@@ -79,7 +71,7 @@ export async function runDataSetQuery(
           filters: unquotedFilterCols.reduce<Dictionary<string>>((acc, col) => {
             acc[col] = debug
               ? result[col].toString()
-              : filterIdHasher.encode(Number(result[col]));
+              : state.filterIdHasher.encode(Number(result[col]));
 
             return acc;
           }, {}),
@@ -90,7 +82,7 @@ export async function runDataSetQuery(
           geographicLevel: csvLabelsToGeographicLevels[result.geographic_level],
           locationId: debug
             ? result.location_id.toString()
-            : locationIdHasher.encode(result.location_id),
+            : state.locationIdHasher.encode(result.location_id),
           values: mapValues(indicatorsById, (indicator) =>
             result[indicator.name].toString()
           ),
@@ -98,7 +90,7 @@ export async function runDataSetQuery(
       }),
     };
   } finally {
-    db.close();
+    state.db.close();
   }
 }
 
@@ -113,10 +105,10 @@ export async function runDataSetQueryToCsv(
   { page, pageSize }: { page: number; pageSize: number }
 ): Promise<CsvReturn> {
   const dataSetDir = getDataSetDir(dataSetId);
-  const db = new Database();
+  const state = new DataSetQueryState(dataSetDir);
 
   try {
-    const { results, total } = await runQuery<DataRow>(db, dataSetDir, {
+    const { results, total } = await runQuery<DataRow>(state, {
       ...query,
       page,
       pageSize,
@@ -132,7 +124,7 @@ export async function runDataSetQueryToCsv(
       },
     };
   } finally {
-    db.close();
+    state.db.close();
   }
 }
 
@@ -150,37 +142,31 @@ interface RunQueryReturn<TRow extends DataRow = DataRow> {
 }
 
 async function runQuery<TRow extends DataRow>(
-  db: Database,
-  dataSetDir: string,
+  state: DataSetQueryState,
   query: DataSetQuery & { page: number; pageSize: number },
   options: RunQueryOptions = {}
 ): Promise<RunQueryReturn<TRow>> {
+  const { db, tableFile } = state;
   const { debug, formatCsv } = options;
-
   const { page, pageSize } = query;
 
   const indicatorIds = parseIdLikeStrings(
     query.indicators ?? [],
-    createIndicatorIdHasher(dataSetDir)
+    createIndicatorIdHasher(state.dataSetDir)
   );
 
   const [locationCols, filterCols, indicators] = await Promise.all([
-    getLocationColumns(db, dataSetDir),
-    getFilterColumns(db, dataSetDir),
-    getIndicators(db, dataSetDir, indicatorIds),
+    getLocationColumns(state),
+    getFilterColumns(state),
+    getIndicators(state, indicatorIds),
   ]);
 
-  const where = await parseDataSetQueryConditions(
-    db,
-    dataSetDir,
-    query,
-    locationCols
-  );
+  const where = await parseDataSetQueryConditions(state, query, locationCols);
 
   const totalQuery = `
       SELECT count(*) AS total
-      FROM '${tableFile(dataSetDir, 'data')}' AS data
-      JOIN '${tableFile(dataSetDir, 'locations')}' AS locations
+      FROM '${tableFile('data')}' AS data
+      JOIN '${tableFile('locations')}' AS locations
         ON (${locationCols.map((col) => `locations.${col}`)})
           = (${locationCols.map((col) => `data.${col}`)})
       ${where.fragment ? `WHERE ${where.fragment}` : ''}
@@ -209,11 +195,11 @@ async function runQuery<TRow extends DataRow>(
                    ...filterCols.map((col) => `data.${col} as ${col}`),
                    ...indicators.map((i) => `data."${i.name}"`),
                  ])}
-          FROM '${tableFile(dataSetDir, 'data')}' AS data
-          JOIN '${tableFile(dataSetDir, 'locations')}' AS locations
+          FROM '${tableFile('data')}' AS data
+          JOIN '${tableFile('locations')}' AS locations
             ON (${locationCols.map((col) => `locations.${col}`)})
                 = (${locationCols.map((col) => `data.${col}`)})
-          JOIN '${tableFile(dataSetDir, 'time_periods')}' AS time_periods
+          JOIN '${tableFile('time_periods')}' AS time_periods
             ON (time_periods.year, time_periods.identifier) 
                 = (data.time_period, data.time_identifier)
           ${where.fragment ? `WHERE ${where.fragment}` : ''}
@@ -233,7 +219,7 @@ async function runQuery<TRow extends DataRow>(
       FROM data ${filterCols
         .map(
           (filter) =>
-            `JOIN '${tableFile(dataSetDir, 'filters')}' AS ${filter} 
+            `JOIN '${tableFile('filters')}' AS ${filter} 
                 ON ${filter}.label = data.${filter} 
                 AND ${filter}.group_name = '${filter.slice(1, -1)}'`
         )
@@ -314,10 +300,10 @@ function getOrderings(
   return orderings;
 }
 
-async function getLocationColumns(
-  db: Database,
-  dataSetDir: string
-): Promise<string[]> {
+async function getLocationColumns({
+  db,
+  dataSetDir,
+}: DataSetQueryState): Promise<string[]> {
   return (
     await db.all<{ column_name: string }>(
       `DESCRIBE SELECT * EXCLUDE id FROM '${tableFile(
@@ -328,10 +314,10 @@ async function getLocationColumns(
   ).map((row) => row.column_name);
 }
 
-async function getFilterColumns(
-  db: Database,
-  dataSetDir: string
-): Promise<string[]> {
+async function getFilterColumns({
+  db,
+  dataSetDir,
+}: DataSetQueryState): Promise<string[]> {
   return (
     await db.all<{ group_name: string }>(`
         SELECT DISTINCT group_name
@@ -341,8 +327,7 @@ async function getFilterColumns(
 }
 
 async function getIndicators(
-  db: Database,
-  dataSetDir: string,
+  { db, dataSetDir }: DataSetQueryState,
   indicatorIds: string[]
 ): Promise<Indicator[]> {
   const ids = compact(indicatorIds);

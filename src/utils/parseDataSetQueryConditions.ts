@@ -22,9 +22,7 @@ import {
   TimePeriodViewModel,
 } from '../schema';
 import { Filter, Location } from '../types/dbSchemas';
-import Database from './Database';
-import { tableFile } from './dataSetPaths';
-import { createFilterIdHasher, createLocationIdHasher } from './idHashers';
+import DataSetQueryState from './DataSetQueryState';
 import {
   columnsToGeographicLevel,
   geographicLevelColumns,
@@ -58,8 +56,7 @@ type CriteriaParsers = Required<{
 export type FilterItem = Pick<Filter, 'id' | 'label' | 'group_name'>;
 
 export default async function parseDataSetQueryConditions(
-  db: Database,
-  dataSetDir: string,
+  state: DataSetQueryState,
   { query }: DataSetQuery,
   locationCols: string[]
 ): Promise<QueryFragmentParams> {
@@ -91,13 +88,8 @@ export default async function parseDataSetQueryConditions(
 
   const [{ parentLocationsParser, locationsParser }, filtersParser] =
     await Promise.all([
-      createLocationParsers(
-        db,
-        dataSetDir,
-        [...rawLocationIdSet],
-        locationCols
-      ),
-      createFiltersParser(db, dataSetDir, [...rawFilterItemIdSet]),
+      createLocationParsers(state, [...rawLocationIdSet], locationCols),
+      createFiltersParser(state, [...rawFilterItemIdSet]),
     ]);
 
   // Perform a second pass, which actually constructs the query.
@@ -227,15 +219,13 @@ function createParser<
 }
 
 async function createFiltersParser(
-  db: Database,
-  dataSetDir: string,
+  state: DataSetQueryState,
   rawFilterItemIds: string[]
 ): Promise<CriteriaParser<DataSetQueryCriteriaFilters>> {
-  const filterIdHasher = createFilterIdHasher(dataSetDir);
-  const filterItemIds = parseIdHashes(rawFilterItemIds, filterIdHasher);
+  const filterItemIds = parseIdHashes(rawFilterItemIds, state.filterIdHasher);
   const filterItemIdsByRawId = zipObject(rawFilterItemIds, filterItemIds);
 
-  const filterItems = await getFilterItems(db, dataSetDir, filterItemIds);
+  const filterItems = await getFilterItems(state, filterItemIds);
   const filterItemsById = keyBy(filterItems, (filter) => filter.id);
 
   return createParser<DataSetQueryCriteriaFilters, string>({
@@ -292,24 +282,20 @@ async function createFiltersParser(
 }
 
 async function createLocationParsers(
-  db: Database,
-  dataSetDir: string,
+  state: DataSetQueryState,
   rawLocationIds: string[],
   locationCols: string[]
 ): Promise<{
   locationsParser: CriteriaParser<DataSetQueryCriteriaLocations>;
   parentLocationsParser: CriteriaParser<DataSetQueryCriteriaLocations>;
 }> {
-  const locationIdHasher = createLocationIdHasher(dataSetDir);
-  const locationIds = parseIdLikeStrings(rawLocationIds, locationIdHasher);
+  const locationIds = parseIdLikeStrings(
+    rawLocationIds,
+    state.locationIdHasher
+  );
   const locationIdsByRawId = zipObject(rawLocationIds, locationIds);
 
-  const locations = await getLocations(
-    db,
-    dataSetDir,
-    locationIds,
-    locationCols
-  );
+  const locations = await getLocations(state, locationIds, locationCols);
 
   const locationCodeCols = locationCols.filter((col) => {
     const geographicLevel = columnsToGeographicLevel[col];
@@ -350,8 +336,7 @@ async function createLocationParsers(
   });
 
   const parentLocationsParser = await createParentLocationParser(
-    db,
-    dataSetDir,
+    state,
     locations,
     locationsByRawId
   );
@@ -363,8 +348,7 @@ async function createLocationParsers(
 }
 
 async function createParentLocationParser(
-  db: Database,
-  dataSetDir: string,
+  { db, tableFile }: DataSetQueryState,
   locations: Location[],
   locationsByRawId: Dictionary<Location | undefined>
 ): Promise<CriteriaParser<DataSetQueryCriteriaLocations>> {
@@ -375,7 +359,7 @@ async function createParentLocationParser(
   await db.run(
     `
     CREATE TABLE locations_filtered AS 
-    SELECT * FROM '${tableFile(dataSetDir, 'locations')}' 
+    SELECT * FROM '${tableFile('locations')}' 
     WHERE ${
       // Default to false as there are no locations - hence the table should be empty
       locations.length > 0 ? `id IN (${placeholders(locations)})` : 'false'
@@ -532,8 +516,7 @@ function parseGeographicLevelFragment(
 }
 
 async function getFilterItems(
-  db: Database,
-  dataSetDir: string,
+  { db, tableFile }: DataSetQueryState,
   filterItemIds: number[]
 ): Promise<FilterItem[]> {
   const ids = compact(filterItemIds);
@@ -544,7 +527,7 @@ async function getFilterItems(
 
   return await db.all<Filter>(
     `SELECT id, label, group_name
-        FROM '${tableFile(dataSetDir, 'filters')}'
+        FROM '${tableFile('filters')}'
         WHERE id IN (${placeholders(ids)});
     `,
     ids
@@ -552,8 +535,7 @@ async function getFilterItems(
 }
 
 async function getLocations(
-  db: Database,
-  dataSetDir: string,
+  { db, tableFile }: DataSetQueryState,
   locationIds: string[],
   locationCols: string[]
 ): Promise<Location[]> {
@@ -571,7 +553,7 @@ async function getLocations(
   return await db.all<Location>(
     `
       SELECT *
-      FROM '${tableFile(dataSetDir, 'locations')}'
+      FROM '${tableFile('locations')}'
       WHERE id::VARCHAR IN (${idPlaceholders})
         OR ${Object.entries(allowedGeographicLevelCols)
           .map(([geographicLevel, col]) => {
