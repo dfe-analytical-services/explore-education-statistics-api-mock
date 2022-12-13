@@ -243,20 +243,18 @@ const errorHandler: ErrorRequestHandler<{}, ApiErrorViewModel> = (
 ) => {
   console.error(err);
 
-  const status = err.status || 500;
-
   if (err instanceof BadRequest) {
-    res.status(status).json({
-      status,
+    res.status(err.status).json({
+      status: err.status,
       title: 'There are validation errors with the request.',
       type: err.name,
       errors: createErrorDictionary(err.errors),
     });
   } else {
-    res.status(status).json({
-      status,
-      title: err.message,
-      type: err.name,
+    res.status(500).json({
+      status: 500,
+      title: 'There was a problem processing the request.',
+      type: 'Internal server error',
     });
   }
 };

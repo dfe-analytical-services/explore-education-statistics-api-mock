@@ -701,7 +701,6 @@ components:
       properties:
         id:
           type: string
-          format: uuid
           description: The ID of the filter item.
         label:
           type: string
@@ -721,7 +720,6 @@ components:
       properties:
         id:
           type: string
-          format: uuid
           description: The ID of the filter.
         hint:
           type: string
@@ -785,7 +783,6 @@ components:
       properties:
         id:
           type: string
-          format: uuid
           description: The ID of the indicator.
         label:
           type: string
@@ -839,7 +836,6 @@ components:
       properties:
         id:
           type: string
-          format: uuid
           description: The ID of this location.
         level:
           $ref: '#/components/schemas/GeographicLevel'
