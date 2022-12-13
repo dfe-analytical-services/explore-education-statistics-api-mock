@@ -1,6 +1,7 @@
 import bodyParser from 'body-parser';
 import compression from 'compression';
 import express, { ErrorRequestHandler, Request } from 'express';
+import 'express-async-errors';
 import * as OpenApiValidator from 'express-openapi-validator';
 import { BadRequest } from 'express-openapi-validator/dist/framework/types';
 import { mapValues } from 'lodash';
