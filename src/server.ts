@@ -6,6 +6,8 @@ import * as OpenApiValidator from 'express-openapi-validator';
 import { BadRequest } from 'express-openapi-validator/dist/framework/types';
 import { mapValues } from 'lodash';
 import path from 'path';
+import ApiError from './errors/ApiError';
+import { InternalServerError, ValidationError } from './errors';
 import { allDataSets, spcDataSets } from './mocks/dataSets';
 import { publications, spcPublication } from './mocks/publications';
 import { ApiErrorViewModel, LinksViewModel } from './schema';
@@ -13,7 +15,6 @@ import createPaginationLinks from './utils/createPaginationLinks';
 import createSelfLink from './utils/createSelfLink';
 import { dataSetDirs } from './utils/getDataSetDir';
 import getDataSetMeta from './utils/getDataSetMeta';
-import createErrorDictionary from './errors/createErrorDictionary';
 import parsePaginationParams from './utils/parsePaginationParams';
 import { getHostUrl } from './utils/requestUtils';
 import { runDataSetQuery, runDataSetQueryToCsv } from './utils/runDataSetQuery';
@@ -245,19 +246,14 @@ const errorHandler: ErrorRequestHandler<{}, ApiErrorViewModel> = (
   console.error(err);
 
   if (err instanceof BadRequest) {
-    res.status(err.status).json({
-      status: err.status,
-      title: 'There are validation errors with the request.',
-      type: err.name,
-      errors: createErrorDictionary(err.errors),
-    });
-  } else {
-    res.status(500).json({
-      status: 500,
-      title: 'There was a problem processing the request.',
-      type: 'Internal server error',
-    });
+    return ValidationError.fromBadRequest(err).toResponse(res);
   }
+
+  if (err instanceof ApiError) {
+    return err.toResponse(res);
+  }
+
+  return new InternalServerError().toResponse(res);
 };
 
 app.use(errorHandler);

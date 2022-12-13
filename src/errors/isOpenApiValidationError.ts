@@ -1,4 +1,4 @@
-import { isObject } from 'lodash';
+import { isObject, isString } from 'lodash';
 
 export interface OpenApiValidationError {
   path: string;
@@ -13,6 +13,9 @@ export default function isOpenApiValidationError(
     isObject(value) &&
     'path' in value &&
     'message' in value &&
-    'errorCode' in value
+    'errorCode' in value &&
+    isString(value.path) &&
+    isString(value.message) &&
+    isString(value.errorCode)
   );
 }

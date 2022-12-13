@@ -1,13 +1,36 @@
+import { BadRequest } from 'express-openapi-validator/dist/framework/types';
 import { isEqual } from 'lodash';
 import { ErrorDictionary, ErrorViewModel } from '../schema';
-import isErrorLike from './isErrorLike';
+import ApiError from './ApiError';
 import isOpenApiValidationError from './isOpenApiValidationError';
 
-export default function createErrorDictionary(
-  errors: unknown[]
-): ErrorDictionary {
-  const unsorted = errors.reduce<ErrorDictionary>((acc, error) => {
-    if (isOpenApiValidationError(error)) {
+export default class ValidationError extends ApiError {
+  constructor({
+    title = 'There are validation errors with the request.',
+    errors,
+  }: {
+    title?: string;
+    errors: ErrorDictionary;
+  }) {
+    super({
+      title: title,
+      type: 'Bad Request',
+      status: 400,
+      errors,
+    });
+  }
+
+  public static fromBadRequest(error: BadRequest): ValidationError {
+    return new ValidationError({
+      errors: normalizeOpenApiValidationErrors(error.errors),
+    });
+  }
+}
+
+function normalizeOpenApiValidationErrors(errors: unknown[]): ErrorDictionary {
+  const unsorted = errors
+    .filter(isOpenApiValidationError)
+    .reduce<ErrorDictionary>((acc, error) => {
       const path = normalizePath(error.path);
 
       if (!acc[path]) {
@@ -23,14 +46,9 @@ export default function createErrorDictionary(
       if (!acc[path].some((item) => isEqual(item, newItem))) {
         acc[path].push(newItem);
       }
-    } else if (isErrorLike(error)) {
-      acc[''].push({
-        message: error.message,
-      });
-    }
 
-    return acc;
-  }, {});
+      return acc;
+    }, {});
 
   return Object.keys(unsorted)
     .sort()
