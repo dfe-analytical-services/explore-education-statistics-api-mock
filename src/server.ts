@@ -6,8 +6,8 @@ import * as OpenApiValidator from 'express-openapi-validator';
 import { BadRequest } from 'express-openapi-validator/dist/framework/types';
 import { mapValues } from 'lodash';
 import path from 'path';
-import ApiError from './errors/ApiError';
 import { InternalServerError, ValidationError } from './errors';
+import ApiError from './errors/ApiError';
 import { allDataSets, spcDataSets } from './mocks/dataSets';
 import { publications, spcPublication } from './mocks/publications';
 import { ApiErrorViewModel, LinksViewModel } from './schema';
@@ -243,8 +243,6 @@ const errorHandler: ErrorRequestHandler<{}, ApiErrorViewModel> = (
   res,
   _
 ) => {
-  console.error(err);
-
   if (err instanceof BadRequest) {
     return ValidationError.fromBadRequest(err).toResponse(res);
   }
@@ -252,6 +250,8 @@ const errorHandler: ErrorRequestHandler<{}, ApiErrorViewModel> = (
   if (err instanceof ApiError) {
     return err.toResponse(res);
   }
+
+  console.error(err);
 
   return new InternalServerError().toResponse(res);
 };
