@@ -284,12 +284,12 @@ components:
       type: object
       description: A query for data from a data set matching specific facets.
       required:
-        - query
+        - facets
         - indicators
       properties:
-        query:
+        facets:
           type: object
-          description: A query to match results by.
+          description: A query to match result facets by.
           oneOf:
             - $ref: '#/components/schemas/DataSetQueryCriteria'
             - $ref: '#/components/schemas/DataSetQueryConditionAnd'

@@ -60,7 +60,7 @@ export type FilterItem = Pick<Filter, 'id' | 'label' | 'group_name'>;
 
 export default async function parseDataSetQueryConditions(
   state: DataSetQueryState,
-  { query }: DataSetQuery,
+  { facets }: DataSetQuery,
   locationCols: string[]
 ): Promise<QueryFragmentParams> {
   const rawFilterItemIdSet = new Set<string>();
@@ -77,7 +77,7 @@ export default async function parseDataSetQueryConditions(
   // Perform a first pass to collect any ids so that we can
   // fetch the actual metadata entities. We'll need these
   // to be able to construct the actual parsed query.
-  parseClause(query, 'query', {
+  parseClause(facets, 'facets', {
     filters: createParser<DataSetQueryCriteriaFilters, string>({
       state,
       fragment: (comparator, values) => {
@@ -98,7 +98,7 @@ export default async function parseDataSetQueryConditions(
     ]);
 
   // Perform a second pass, which actually constructs the query.
-  return parseClause(query, 'query', {
+  return parseClause(facets, 'facets', {
     filters: filtersParser,
     geographicLevels: createGeographicLevelsParser(state, locationCols),
     locations: locationsParser,
