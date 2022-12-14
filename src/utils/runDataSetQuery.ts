@@ -49,9 +49,9 @@ export async function runDataSetQuery(
     );
 
     if (results.length === 0) {
-      state.appendWarning('query', {
+      state.prependWarning('facets', {
         message:
-          'No results matched the query criteria. You may need to refine your query.',
+          'No results matched the facet criteria. You may need to refine your query.',
         code: 'results.empty',
       });
     }
