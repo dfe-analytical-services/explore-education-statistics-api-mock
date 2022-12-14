@@ -265,16 +265,16 @@ components:
       type: object
       description: Describes an error returned from the API.
       required:
-        - type
         - title
+        - type
         - status
       properties:
+        title:
+          type: string
+          description: The title of the error. Typically summarises the error.
         type:
           type: string
           description: The type of error.
-        title:
-          type: string
-          description: The title of the error.
         status:
           type: number
           description: The HTTP status code.
