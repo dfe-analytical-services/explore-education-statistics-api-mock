@@ -12,3 +12,15 @@ export const arrayErrors = {
     code: 'array.noBlankStrings',
   },
 } as const satisfies Dictionary<ErrorViewModel | ErrorViewModelFactory>;
+
+export const genericErrors = {
+  notFound({ items }: { items: unknown[] }) {
+    return {
+      message: `Could not find ${items.length === 1 ? 'item' : 'items'}.`,
+      code: 'notFound',
+      details: {
+        items,
+      },
+    };
+  },
+} as const satisfies Dictionary<ErrorViewModel | ErrorViewModelFactory>;

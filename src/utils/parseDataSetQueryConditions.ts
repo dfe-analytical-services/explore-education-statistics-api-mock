@@ -22,6 +22,8 @@ import {
   TimePeriodViewModel,
 } from '../schema';
 import { Filter, Location } from '../types/dbSchemas';
+import { genericErrors } from '../validations/errors';
+import { criteriaWarnings } from '../validations/warnings';
 import DataSetQueryState from './DataSetQueryState';
 import {
   columnsToGeographicLevel,
@@ -44,7 +46,8 @@ type DataSetQueryConditions =
   | DataSetQueryConditionNot;
 
 type CriteriaParser<TCriteria extends ValueOf<DataSetQueryCriteria>> = (
-  criteria: TCriteria
+  criteria: TCriteria,
+  path: string
 ) => QueryFragmentParams | void;
 
 type CriteriaParsers = Required<{
@@ -64,6 +67,7 @@ export default async function parseDataSetQueryConditions(
   const rawLocationIdSet = new Set<string>();
 
   const collectLocationIds = createParser<DataSetQueryCriteriaFilters, string>({
+    state,
     fragment: (comparator, values) => {
       values.forEach((value) => rawLocationIdSet.add(value));
       return '';
@@ -73,8 +77,9 @@ export default async function parseDataSetQueryConditions(
   // Perform a first pass to collect any ids so that we can
   // fetch the actual metadata entities. We'll need these
   // to be able to construct the actual parsed query.
-  parseClause(query, {
+  parseClause(query, 'query', {
     filters: createParser<DataSetQueryCriteriaFilters, string>({
+      state,
       fragment: (comparator, values) => {
         values.forEach((value) => rawFilterItemIdSet.add(value));
         return '';
@@ -93,48 +98,40 @@ export default async function parseDataSetQueryConditions(
     ]);
 
   // Perform a second pass, which actually constructs the query.
-  return parseClause(query, {
+  return parseClause(query, 'query', {
     filters: filtersParser,
-    geographicLevels: createParser({
-      fragment: parseGeographicLevelFragment,
-      params: (values) => values.map((val) => geographicLevelCsvLabels[val]),
-    }),
+    geographicLevels: createGeographicLevelsParser(state, locationCols),
     locations: locationsParser,
     parentLocations: parentLocationsParser,
-    timePeriods: createParser({
-      fragment: parseTimePeriodFragment,
-      params: (values) =>
-        values.flatMap(({ year, code }) => [
-          year,
-          timePeriodCodeIdentifiers[code],
-        ]),
-    }),
+    timePeriods: createTimePeriodsParser(state),
   });
 }
 
 function parseClause(
   clause: DataSetQueryConditions | DataSetQueryCriteria,
+  path: string,
   parsers: CriteriaParsers
 ): QueryFragmentParams {
   if ('and' in clause) {
-    return parseSubClauses(clause.and, 'AND', parsers);
+    return parseSubClauses(clause.and, `${path}.and`, 'AND', parsers);
   } else if ('or' in clause) {
-    return parseSubClauses(clause.or, 'OR', parsers);
+    return parseSubClauses(clause.or, `${path}.or`, 'OR', parsers);
   } else if ('not' in clause) {
-    return parseClause(clause.not, parsers);
+    return parseClause(clause.not, `${path}.not`, parsers);
   }
 
-  return parseCriteria(clause, parsers);
+  return parseCriteria(clause, path, parsers);
 }
 
 function parseSubClauses(
   subClauses: (DataSetQueryConditions | DataSetQueryCriteria)[],
+  path: string,
   condition: 'AND' | 'OR',
   parsers: CriteriaParsers
 ): QueryFragmentParams {
   return subClauses.reduce<QueryFragmentParams>(
-    (acc, clause) => {
-      const parsed = parseClause(clause, parsers);
+    (acc, clause, index) => {
+      const parsed = parseClause(clause, `${path}[${index}]`, parsers);
 
       if (parsed.fragment) {
         acc.fragment = acc.fragment
@@ -154,6 +151,7 @@ function parseSubClauses(
 
 function parseCriteria(
   criteria: DataSetQueryCriteria,
+  path: string,
   parsers: CriteriaParsers
 ): QueryFragmentParams {
   return Object.entries(criteria).reduce<QueryFragmentParams>(
@@ -165,7 +163,7 @@ function parseCriteria(
         throw new Error(`No matching parser for '${key}'`);
       }
 
-      const parsed = parser(comparators);
+      const parsed = parser(comparators, `${path}.${key}`);
 
       if (parsed?.fragment) {
         acc.fragment = acc.fragment
@@ -188,16 +186,29 @@ function createParser<
   TValue extends ValueOf<TCriteria> = ValueOf<TCriteria>,
   TComparator extends keyof TCriteria = keyof TCriteria
 >(options: {
-  fragment: (comparator: TComparator, values: TValue[]) => string;
+  state: DataSetQueryState;
+  fragment: (
+    comparator: TComparator,
+    values: TValue[],
+    meta: { path: string; criteria: TCriteria }
+  ) => string;
   params?: (values: TValue[]) => (string | number | boolean)[];
 }): CriteriaParser<TCriteria> {
-  return (criteria) => {
+  return (criteria, path) => {
     return Object.entries(criteria as any).reduce<QueryFragmentParams>(
       (acc, [key, value]) => {
         const comparator = key as TComparator;
 
         const values = Array.isArray(value) ? value : [value];
-        const fragment = options.fragment(comparator, values);
+
+        if (values.length === 0) {
+          options.state.appendWarning(path, criteriaWarnings.empty);
+        }
+
+        const fragment = options.fragment(comparator, values, {
+          path: `${path}.${key}`,
+          criteria,
+        });
 
         if (fragment) {
           acc.fragment = acc.fragment
@@ -229,13 +240,23 @@ async function createFiltersParser(
   const filterItemsById = keyBy(filterItems, (filter) => filter.id);
 
   return createParser<DataSetQueryCriteriaFilters, string>({
-    fragment: (comparator, values) => {
+    state,
+    fragment: (comparator, values, { path }) => {
       const matchingItems = compact(
         values.map((value) => {
           const id = filterItemIdsByRawId[value];
           return filterItemsById[id];
         })
       );
+
+      if (matchingItems.length < values.length) {
+        state.appendError(
+          path,
+          genericErrors.notFound({
+            items: values.filter((value) => !filterItemIdsByRawId[value]),
+          })
+        );
+      }
 
       const groupedMatchingItems = () =>
         groupBy(matchingItems, (item) => item.group_name);
@@ -316,7 +337,21 @@ async function createLocationParsers(
   });
 
   const locationsParser = createParser<DataSetQueryCriteriaLocations, string>({
-    fragment: (comparator, values) => {
+    state,
+    fragment: (comparator, values, { path }) => {
+      const matchingLocations = compact(
+        values.map((value) => locationsByRawId[value])
+      );
+
+      if (matchingLocations.length < values.length) {
+        state.appendError(
+          path,
+          genericErrors.notFound({
+            items: values.filter((value) => !locationsByRawId[value]),
+          })
+        );
+      }
+
       switch (comparator) {
         case 'eq':
           return 'locations.id = ?';
@@ -332,7 +367,7 @@ async function createLocationParsers(
             : '';
       }
     },
-    params: (values) => values.map((val) => locationsByRawId[val]?.id ?? 0),
+    params: (values) => values.map((value) => locationsByRawId[value]?.id ?? 0),
   });
 
   const parentLocationsParser = await createParentLocationParser(
@@ -348,10 +383,12 @@ async function createLocationParsers(
 }
 
 async function createParentLocationParser(
-  { db, tableFile }: DataSetQueryState,
+  state: DataSetQueryState,
   locations: Location[],
   locationsByRawId: Dictionary<Location | undefined>
 ): Promise<CriteriaParser<DataSetQueryCriteriaLocations>> {
+  const { db, tableFile } = state;
+
   // Create a temporary table here so that we can reference it in the parent locations
   // query fragment.  We can't reference CTE tables in sub-queries, so the fragment
   // becomes really verbose without this. Additionally, if we load just the filtered
@@ -368,7 +405,8 @@ async function createParentLocationParser(
   );
 
   return createParser<DataSetQueryCriteriaLocations, string>({
-    fragment: (comparator, values) => {
+    state,
+    fragment: (comparator, values, { path }) => {
       const matchingLocations = compact(
         values.map((value) => locationsByRawId[value])
       );
@@ -396,6 +434,15 @@ async function createParentLocationParser(
         matchingLocations,
         (location) => location.geographic_level
       );
+
+      if (matchingLocations.length < values.length) {
+        state.appendError(
+          path,
+          genericErrors.notFound({
+            items: values.filter((value) => !locationsByRawId[value]),
+          })
+        );
+      }
 
       // (...columns) in (select (...columns) from locations_filtered where id = ?)
       //    and data.geographic_level != '<level>'
@@ -463,56 +510,87 @@ async function createParentLocationParser(
   });
 }
 
-function parseTimePeriodFragment(
-  comparator: keyof Required<DataSetQueryCriteriaTimePeriods>,
-  values: TimePeriodViewModel[]
-): string {
-  switch (comparator) {
-    case 'eq':
-      return '(data.time_period = ? AND data.time_identifier = ?)';
-    case 'notEq':
-      return '(data.time_period != ? AND data.time_identifier = ?)';
-    case 'gte':
-      return '(data.time_period >= ? AND data.time_identifier = ?)';
-    case 'gt':
-      return '(data.time_period > ? AND data.time_identifier = ?)';
-    case 'lte':
-      return '(data.time_period <= ? AND data.time_identifier = ?)';
-    case 'lt':
-      return '(data.time_period < ? AND data.time_identifier = ?)';
-    case 'in':
-      return values.length > 0
-        ? `(data.time_period, data.time_identifier) IN (${values.map(
-            (_) => '(?, ?)'
-          )})`
-        : '';
-    case 'notIn':
-      return values.length > 0
-        ? `(data.time_period, data.time_identifier) NOT IN (${values.map(
-            (_) => '(?, ?)'
-          )})`
-        : '';
-  }
+function createTimePeriodsParser(
+  state: DataSetQueryState
+): CriteriaParser<DataSetQueryCriteriaTimePeriods> {
+  return createParser<DataSetQueryCriteriaTimePeriods, TimePeriodViewModel>({
+    state,
+    fragment: (comparator, values) => {
+      switch (comparator) {
+        case 'eq':
+          return '(data.time_period = ? AND data.time_identifier = ?)';
+        case 'notEq':
+          return '(data.time_period != ? AND data.time_identifier = ?)';
+        case 'gte':
+          return '(data.time_period >= ? AND data.time_identifier = ?)';
+        case 'gt':
+          return '(data.time_period > ? AND data.time_identifier = ?)';
+        case 'lte':
+          return '(data.time_period <= ? AND data.time_identifier = ?)';
+        case 'lt':
+          return '(data.time_period < ? AND data.time_identifier = ?)';
+        case 'in':
+          return values.length > 0
+            ? `(data.time_period, data.time_identifier) IN (${values.map(
+                (_) => '(?, ?)'
+              )})`
+            : '';
+        case 'notIn':
+          return values.length > 0
+            ? `(data.time_period, data.time_identifier) NOT IN (${values.map(
+                (_) => '(?, ?)'
+              )})`
+            : '';
+      }
+    },
+    params: (values) =>
+      values.flatMap(({ year, code }) => [
+        year,
+        timePeriodCodeIdentifiers[code],
+      ]),
+  });
 }
 
-function parseGeographicLevelFragment(
-  comparator: keyof Required<DataSetQueryCriteriaGeographicLevels>,
-  values: GeographicLevel[]
-): string {
-  switch (comparator) {
-    case 'eq':
-      return 'data.geographic_level = ?';
-    case 'notEq':
-      return 'data.geographic_level != ?';
-    case 'in':
-      return values.length > 0
-        ? `data.geographic_level IN (${placeholders(values)})`
-        : '';
-    case 'notIn':
-      return values.length > 0
-        ? `data.geographic_level NOT IN (${placeholders(values)})`
-        : '';
-  }
+function createGeographicLevelsParser(
+  state: DataSetQueryState,
+  locationCols: string[]
+): CriteriaParser<DataSetQueryCriteriaGeographicLevels> {
+  const allowedLevels = locationCols.reduce((acc, col) => {
+    acc.add(columnsToGeographicLevel[col]);
+    return acc;
+  }, new Set<GeographicLevel>());
+
+  return createParser<DataSetQueryCriteriaGeographicLevels, GeographicLevel>({
+    state,
+    fragment: (comparator, values, { path }) => {
+      const matchingLevels = values.filter((value) => allowedLevels.has(value));
+
+      if (!matchingLevels.length) {
+        state.appendError(
+          path,
+          genericErrors.notFound({
+            items: values.filter((value) => !allowedLevels.has(value)),
+          })
+        );
+      }
+
+      switch (comparator) {
+        case 'eq':
+          return 'data.geographic_level = ?';
+        case 'notEq':
+          return 'data.geographic_level != ?';
+        case 'in':
+          return values.length > 0
+            ? `data.geographic_level IN (${placeholders(values)})`
+            : '';
+        case 'notIn':
+          return values.length > 0
+            ? `data.geographic_level NOT IN (${placeholders(values)})`
+            : '';
+      }
+    },
+    params: (values) => values.map((value) => geographicLevelCsvLabels[value]),
+  });
 }
 
 async function getFilterItems(

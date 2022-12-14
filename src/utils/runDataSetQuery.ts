@@ -7,7 +7,7 @@ import {
   PagingViewModel,
 } from '../schema';
 import { DataRow, Indicator } from '../types/dbSchemas';
-import { arrayErrors } from '../validations/errors';
+import { arrayErrors, genericErrors } from '../validations/errors';
 import { tableFile } from './dataSetPaths';
 import DataSetQueryState from './DataSetQueryState';
 import getDataSetDir from './getDataSetDir';
@@ -64,7 +64,7 @@ export async function runDataSetQuery(
         totalPages: pageSize > 0 ? Math.ceil(total / pageSize) : pageSize,
       },
       footnotes: [],
-      warnings: state.getWarnings(),
+      warnings: state.hasWarnings() ? state.getWarnings() : undefined,
       results: results.map((result) => {
         return {
           filters: unquotedFilterCols.reduce<Dictionary<string>>((acc, col) => {
@@ -239,6 +239,14 @@ async function runQuery<TRow extends DataRow>(
   //   not as fast on paper. Cursor pagination may be a premature optimisation.
   const pageOffset = (page - 1) * pageSize;
 
+  // Bail before executing any queries if there
+  // have been any errors that have accumulated.
+  if (state.hasErrors()) {
+    throw new ValidationError({
+      errors: state.getErrors(),
+    });
+  }
+
   const [{ total }, results] = await Promise.all([
     db.first<{ total: number }>(totalQuery, where.params),
     db.all<TRow>(resultsQuery, [...where.params, pageSize, pageOffset]),
@@ -359,15 +367,12 @@ async function getIndicators(
       return acc;
     }, new Set());
 
-    const missing = uniq(ids.filter((id) => !allowed.has(id)));
-
-    throw ValidationError.atPath('indicators', {
-      message: 'Could not find all indicators.',
-      code: 'indicators.notFound',
-      details: {
-        missing,
-      },
-    });
+    throw ValidationError.atPath(
+      'indicators',
+      genericErrors.notFound({
+        items: uniq(ids.filter((id) => !allowed.has(id))),
+      })
+    );
   }
 
   return indicators;
