@@ -27,6 +27,7 @@ import { criteriaWarnings } from '../validations/warnings';
 import DataSetQueryState from './DataSetQueryState';
 import {
   columnsToGeographicLevel,
+  csvLabelsToGeographicLevels,
   geographicLevelColumns,
   geographicLevelCsvLabels,
 } from './locationConstants';
@@ -318,23 +319,18 @@ async function createLocationParsers(
   const locationIdsByRawId = zipObject(rawLocationIds, locationIds);
 
   const locations = await getLocations(state, locationIds, locationCols);
-
-  const locationCodeCols = locationCols.filter((col) => {
-    const geographicLevel = columnsToGeographicLevel[col];
-
-    if (!geographicLevel) {
-      return false;
-    }
-
-    return geographicLevelColumns[geographicLevel].code === col;
-  });
-
   const locationsByRawId = mapValues(locationIdsByRawId, (locationId) => {
-    return locations.find(
-      (location) =>
-        location.id === Number(locationId) ||
-        locationCodeCols.some((col) => location[col] === locationId)
-    );
+    return locations.find((location) => {
+      if (location.id === Number(locationId)) {
+        return true;
+      }
+
+      const geographicLevel =
+        csvLabelsToGeographicLevels[location.geographic_level];
+      const codeCol = geographicLevelColumns[geographicLevel].code;
+
+      return location[codeCol] === locationId;
+    });
   });
 
   const locationsParser = createParser<DataSetQueryCriteriaLocations, string>({
