@@ -68,9 +68,8 @@ export default async function parseDataSetQueryConditions(
 
   const collectLocationIds = createParser<DataSetQueryCriteriaFilters, string>({
     state,
-    fragment: (comparator, values) => {
+    parser: (comparator, values) => {
       values.forEach((value) => rawLocationIdSet.add(value));
-      return '';
     },
   });
 
@@ -80,9 +79,8 @@ export default async function parseDataSetQueryConditions(
   parseClause(facets, 'facets', {
     filters: createParser<DataSetQueryCriteriaFilters, string>({
       state,
-      fragment: (comparator, values) => {
+      parser: (comparator, values) => {
         values.forEach((value) => rawFilterItemIdSet.add(value));
-        return '';
       },
     }),
     geographicLevels: noop,
@@ -187,12 +185,14 @@ function createParser<
   TComparator extends keyof TCriteria = keyof TCriteria
 >(options: {
   state: DataSetQueryState;
-  fragment: (
+  parser: (
     comparator: TComparator,
     values: TValue[],
     meta: { path: string; criteria: TCriteria }
-  ) => string;
-  params?: (values: TValue[]) => (string | number | boolean)[];
+  ) => {
+    fragment: string;
+    params?: (string | number | boolean)[];
+  } | void;
 }): CriteriaParser<TCriteria> {
   return (criteria, path) => {
     return Object.entries(criteria as any).reduce<QueryFragmentParams>(
@@ -205,17 +205,17 @@ function createParser<
           options.state.appendWarning(path, criteriaWarnings.empty);
         }
 
-        const fragment = options.fragment(comparator, values, {
+        const result = options.parser(comparator, values, {
           path: `${path}.${key}`,
           criteria,
         });
 
-        if (fragment) {
+        if (result) {
+          const { fragment, params = [] } = result;
+
           acc.fragment = acc.fragment
             ? `${acc.fragment} AND ${fragment}`
             : fragment;
-
-          const params = options.params?.(values) ?? values;
           acc.params.push(...params);
         }
 
@@ -241,7 +241,7 @@ async function createFiltersParser(
 
   return createParser<DataSetQueryCriteriaFilters, string>({
     state,
-    fragment: (comparator, values, { path }) => {
+    parser: (comparator, values, { path }) => {
       const matchingItems = compact(
         values.map((value) => {
           const id = filterItemIdsByRawId[value];
@@ -261,44 +261,45 @@ async function createFiltersParser(
       const groupedMatchingItems = () =>
         groupBy(matchingItems, (item) => item.group_name);
 
+      const params = matchingItems.map((item) => item.label);
+
       // Have to be more careful to handle negative cases as we
       // need matching filter items to construct the conditions.
       switch (comparator) {
         case 'eq':
-          return matchingItems.length > 0
-            ? `data."${matchingItems[0].group_name}" = ?`
-            : 'false';
+          return params.length > 0
+            ? { fragment: `data."${matchingItems[0].group_name}" = ?`, params }
+            : { fragment: 'false' };
         case 'notEq':
-          return matchingItems.length > 0
-            ? `data."${matchingItems[0].group_name}" != ?`
-            : 'true';
+          return params.length > 0
+            ? { fragment: `data."${matchingItems[0].group_name}" != ?`, params }
+            : { fragment: 'true' };
         case 'in':
-          return matchingItems.length > 0
-            ? `(${Object.entries(groupedMatchingItems())
-                .map(
-                  ([group, items]) =>
-                    `data."${group}" IN (${placeholders(items)})`
-                )
-                .join(' AND ')})`
-            : '';
+          return params.length > 0
+            ? {
+                fragment: `(${Object.entries(groupedMatchingItems())
+                  .map(
+                    ([group, items]) =>
+                      `data."${group}" IN (${placeholders(items)})`
+                  )
+                  .join(' AND ')})`,
+                params,
+              }
+            : undefined;
         case 'notIn':
-          return matchingItems.length > 0
-            ? `(${Object.entries(groupedMatchingItems())
-                .map(
-                  ([group, items]) =>
-                    `data."${group}" NOT IN (${placeholders(items)})`
-                )
-                .join(' AND ')})`
-            : '';
+          return params.length > 0
+            ? {
+                fragment: `(${Object.entries(groupedMatchingItems())
+                  .map(
+                    ([group, items]) =>
+                      `data."${group}" NOT IN (${placeholders(items)})`
+                  )
+                  .join(' AND ')})`,
+                params,
+              }
+            : undefined;
       }
     },
-    params: (values) =>
-      compact(
-        values.map((value) => {
-          const id = filterItemIdsByRawId[value];
-          return filterItemsById[id]?.label;
-        })
-      ),
   });
 }
 
@@ -338,7 +339,7 @@ async function createLocationParsers(
 
   const locationsParser = createParser<DataSetQueryCriteriaLocations, string>({
     state,
-    fragment: (comparator, values, { path }) => {
+    parser: (comparator, values, { path }) => {
       const matchingLocations = compact(
         values.map((value) => locationsByRawId[value])
       );
@@ -352,22 +353,32 @@ async function createLocationParsers(
         );
       }
 
+      const params = matchingLocations.map((location) => location.id);
+
       switch (comparator) {
         case 'eq':
-          return 'locations.id = ?';
+          return {
+            fragment: 'locations.id = ?',
+            params,
+          };
         case 'notEq':
-          return 'locations.id != ?';
+          return {
+            fragment: 'locations.id != ?',
+            params,
+          };
         case 'in':
-          return values.length > 0
-            ? `locations.id IN (${placeholders(values)})`
-            : '';
+          return params.length > 0
+            ? { fragment: `locations.id IN (${placeholders(values)})`, params }
+            : undefined;
         case 'notIn':
           return values.length > 0
-            ? `locations.id NOT IN (${placeholders(values)})`
-            : '';
+            ? {
+                fragment: `locations.id NOT IN (${placeholders(values)})`,
+                params,
+              }
+            : undefined;
       }
     },
-    params: (values) => values.map((value) => locationsByRawId[value]?.id ?? 0),
   });
 
   const parentLocationsParser = await createParentLocationParser(
@@ -406,7 +417,7 @@ async function createParentLocationParser(
 
   return createParser<DataSetQueryCriteriaLocations, string>({
     state,
-    fragment: (comparator, values, { path }) => {
+    parser: (comparator, values, { path }) => {
       const matchingLocations = compact(
         values.map((value) => locationsByRawId[value])
       );
@@ -444,69 +455,82 @@ async function createParentLocationParser(
         );
       }
 
+      const params = matchingLocations.map((location) => location.id);
+
       // (...columns) in (select (...columns) from locations_filtered where id = ?)
       //    and data.geographic_level != '<level>'
 
       switch (comparator) {
         case 'eq': {
-          if (!matchingLocations.length) {
-            return 'false';
+          if (!params.length) {
+            return { fragment: 'false' };
           }
 
           const [location] = matchingLocations;
           const cols = getCols([location]);
 
-          return `(${cols.data}) = (SELECT (${cols.locations}) FROM locations_filtered WHERE id = ?)
-            AND data.geographic_level != '${location.geographic_level}'`;
+          return {
+            fragment: `(${cols.data}) = (SELECT (${cols.locations}) FROM locations_filtered WHERE id = ?)
+              AND data.geographic_level != '${location.geographic_level}'`,
+            params,
+          };
         }
         case 'notEq': {
-          if (!matchingLocations.length) {
-            return 'true';
+          if (!params.length) {
+            return { fragment: 'true' };
           }
 
           const [location] = matchingLocations;
           const cols = getCols([location]);
 
-          return `(${cols.data}) != (SELECT (${cols.locations}) FROM locations_filtered WHERE id = ?)
-            AND data.geographic_level != '${location.geographic_level}'`;
+          return {
+            fragment: `(${cols.data}) != (SELECT (${cols.locations}) FROM locations_filtered WHERE id = ?)
+              AND data.geographic_level != '${location.geographic_level}'`,
+            params,
+          };
         }
         case 'in': {
-          if (!matchingLocations.length) {
-            return '';
+          if (!params.length) {
+            return undefined;
           }
 
-          return Object.entries(locationsByGeographicLevel)
-            .map(([geographicLevel, locations]) => {
-              const cols = getCols(locations);
+          return {
+            fragment: Object.entries(locationsByGeographicLevel)
+              .map(([geographicLevel, locations]) => {
+                const cols = getCols(locations);
 
-              return `((${cols.data}) IN (SELECT (${
-                cols.locations
-              }) FROM locations_filtered WHERE id IN (${placeholders(
-                locations
-              )})) AND data.geographic_level != '${geographicLevel}')`;
-            })
-            .join(' AND ');
+                return `((${cols.data}) IN (SELECT (${
+                  cols.locations
+                }) FROM locations_filtered WHERE id IN (${placeholders(
+                  locations
+                )})) AND data.geographic_level != '${geographicLevel}')`;
+              })
+              .join(' AND '),
+            params,
+          };
         }
         case 'notIn': {
-          if (!matchingLocations.length) {
-            return '';
+          if (!params.length) {
+            return undefined;
           }
 
-          return Object.entries(locationsByGeographicLevel)
-            .map(([geographicLevel, locations]) => {
-              const cols = getCols(locations);
+          return {
+            fragment: Object.entries(locationsByGeographicLevel)
+              .map(([geographicLevel, locations]) => {
+                const cols = getCols(locations);
 
-              return `((${cols.data}) NOT IN (SELECT (${
-                cols.locations
-              }) FROM locations_filtered WHERE id IN (${placeholders(
-                locations
-              )})) AND data.geographic_level != '${geographicLevel}')`;
-            })
-            .join(' AND ');
+                return `((${cols.data}) NOT IN (SELECT (${
+                  cols.locations
+                }) FROM locations_filtered WHERE id IN (${placeholders(
+                  locations
+                )})) AND data.geographic_level != '${geographicLevel}')`;
+              })
+              .join(' AND '),
+            params,
+          };
         }
       }
     },
-    params: (values) => values.map((val) => locationsByRawId[val]?.id ?? 0),
   });
 }
 
@@ -515,39 +539,60 @@ function createTimePeriodsParser(
 ): CriteriaParser<DataSetQueryCriteriaTimePeriods> {
   return createParser<DataSetQueryCriteriaTimePeriods, TimePeriodViewModel>({
     state,
-    fragment: (comparator, values) => {
-      switch (comparator) {
-        case 'eq':
-          return '(data.time_period = ? AND data.time_identifier = ?)';
-        case 'notEq':
-          return '(data.time_period != ? AND data.time_identifier = ?)';
-        case 'gte':
-          return '(data.time_period >= ? AND data.time_identifier = ?)';
-        case 'gt':
-          return '(data.time_period > ? AND data.time_identifier = ?)';
-        case 'lte':
-          return '(data.time_period <= ? AND data.time_identifier = ?)';
-        case 'lt':
-          return '(data.time_period < ? AND data.time_identifier = ?)';
-        case 'in':
-          return values.length > 0
-            ? `(data.time_period, data.time_identifier) IN (${values.map(
-                (_) => '(?, ?)'
-              )})`
-            : '';
-        case 'notIn':
-          return values.length > 0
-            ? `(data.time_period, data.time_identifier) NOT IN (${values.map(
-                (_) => '(?, ?)'
-              )})`
-            : '';
-      }
-    },
-    params: (values) =>
-      values.flatMap(({ year, code }) => [
+    parser: (comparator, values) => {
+      const params = values.flatMap(({ year, code }) => [
         year,
         timePeriodCodeIdentifiers[code],
-      ]),
+      ]);
+      const placeholders = values.map((_) => '(?, ?)');
+
+      switch (comparator) {
+        case 'eq':
+          return {
+            fragment: '(data.time_period = ? AND data.time_identifier = ?)',
+            params,
+          };
+        case 'notEq':
+          return {
+            fragment: '(data.time_period != ? AND data.time_identifier = ?)',
+            params,
+          };
+        case 'gte':
+          return {
+            fragment: '(data.time_period >= ? AND data.time_identifier = ?)',
+            params,
+          };
+        case 'gt':
+          return {
+            fragment: '(data.time_period > ? AND data.time_identifier = ?)',
+            params,
+          };
+        case 'lte':
+          return {
+            fragment: '(data.time_period <= ? AND data.time_identifier = ?)',
+            params,
+          };
+        case 'lt':
+          return {
+            fragment: '(data.time_period < ? AND data.time_identifier = ?)',
+            params,
+          };
+        case 'in':
+          return params.length > 0
+            ? {
+                fragment: `(data.time_period, data.time_identifier) IN (${placeholders})`,
+                params,
+              }
+            : undefined;
+        case 'notIn':
+          return params.length > 0
+            ? {
+                fragment: `(data.time_period, data.time_identifier) NOT IN (${placeholders})`,
+                params,
+              }
+            : undefined;
+      }
+    },
   });
 }
 
@@ -562,10 +607,10 @@ function createGeographicLevelsParser(
 
   return createParser<DataSetQueryCriteriaGeographicLevels, GeographicLevel>({
     state,
-    fragment: (comparator, values, { path }) => {
-      const matchingLevels = values.filter((value) => allowedLevels.has(value));
+    parser: (comparator, values, { path }) => {
+      const params = values.filter((value) => allowedLevels.has(value));
 
-      if (!matchingLevels.length) {
+      if (!params.length) {
         state.appendError(
           path,
           genericErrors.notFound({
@@ -576,20 +621,27 @@ function createGeographicLevelsParser(
 
       switch (comparator) {
         case 'eq':
-          return 'data.geographic_level = ?';
+          return { fragment: 'data.geographic_level = ?', params };
         case 'notEq':
-          return 'data.geographic_level != ?';
+          return { fragment: 'data.geographic_level != ?', params };
         case 'in':
-          return values.length > 0
-            ? `data.geographic_level IN (${placeholders(values)})`
-            : '';
+          return params.length > 0
+            ? {
+                fragment: `data.geographic_level IN (${placeholders(params)})`,
+                params,
+              }
+            : undefined;
         case 'notIn':
-          return values.length > 0
-            ? `data.geographic_level NOT IN (${placeholders(values)})`
-            : '';
+          return params.length > 0
+            ? {
+                fragment: `data.geographic_level NOT IN (${placeholders(
+                  params
+                )})`,
+                params,
+              }
+            : undefined;
       }
     },
-    params: (values) => values.map((value) => geographicLevelCsvLabels[value]),
   });
 }
 
