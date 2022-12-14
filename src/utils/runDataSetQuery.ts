@@ -202,7 +202,7 @@ async function runQuery<TRow extends DataRow>(
             ON (time_periods.year, time_periods.identifier) 
                 = (data.time_period, data.time_identifier)
           ${where.fragment ? `WHERE ${where.fragment}` : ''}
-          ORDER BY ${getOrderings(query, locationCols, filterCols)}
+          ORDER BY ${getOrderings(query, state, locationCols, filterCols)}
           LIMIT ?
           OFFSET ? 
       )
@@ -263,48 +263,65 @@ async function runQuery<TRow extends DataRow>(
 
 function getOrderings(
   query: DataSetQuery,
+  state: DataSetQueryState,
   locationCols: string[],
   filterCols: string[]
 ): string[] {
-  const orderings: string[] = [];
-
-  if (query.sort) {
-    // Remove quotes wrapping column name
-    const allowedFilterCols = filterCols.map((col) => col.slice(1, -1));
-    const allowedGeographicLevelCols = pickBy(geographicLevelColumns, (col) =>
-      locationCols.includes(col.code)
-    );
-
-    query.sort.forEach((sort) => {
-      const direction = sort.order === 'Desc' ? 'DESC' : 'ASC';
-
-      if (sort.name === 'TimePeriod') {
-        orderings.push(`time_periods.ordering ${direction}`);
-        return;
-      }
-
-      if (allowedGeographicLevelCols[sort.name]) {
-        orderings.push(
-          `${allowedGeographicLevelCols[sort.name].name} ${direction}`
-        );
-        return;
-      }
-
-      if (allowedFilterCols.includes(sort.name)) {
-        orderings.push(`${sort.name} ${direction}`);
-        return;
-      }
-
-      // TODO: Add error handling for invalid fields that cannot be ordered
-    });
-  }
-
   // Default to ordering by descending time periods
-  if (!orderings.length) {
+  if (!query.sort) {
     return ['time_periods.ordering DESC'];
   }
 
-  return orderings;
+  if (!query.sort.length) {
+    throw ValidationError.atPath('sort', arrayErrors.notEmpty);
+  }
+
+  // Remove quotes wrapping column name
+  const allowedFilterCols = new Set(filterCols.map((col) => col.slice(1, -1)));
+  const allowedGeographicLevelCols = pickBy(geographicLevelColumns, (col) =>
+    locationCols.includes(col.code)
+  );
+
+  const sorts: string[] = [];
+  const invalidSorts = new Set<string>();
+
+  query.sort.forEach((sort) => {
+    const direction = sort.order === 'Desc' ? 'DESC' : 'ASC';
+
+    if (sort.name === 'TimePeriod') {
+      sorts.push(`time_periods.ordering ${direction}`);
+      return;
+    }
+
+    if (allowedGeographicLevelCols[sort.name]) {
+      sorts.push(`${allowedGeographicLevelCols[sort.name].name} ${direction}`);
+      return;
+    }
+
+    if (allowedFilterCols.has(sort.name)) {
+      sorts.push(`${sort.name} ${direction}`);
+      return;
+    }
+
+    invalidSorts.add(sort.name);
+  });
+
+  if (invalidSorts.size > 0) {
+    throw ValidationError.atPath('sort', {
+      message: 'Could not sort fields as they are not allowed.',
+      code: 'sort.notAllowed',
+      details: {
+        items: [...invalidSorts],
+        allowed: [
+          'TimePeriod',
+          ...allowedFilterCols,
+          ...Object.keys(allowedGeographicLevelCols),
+        ],
+      },
+    });
+  }
+
+  return sorts;
 }
 
 async function getLocationColumns({
