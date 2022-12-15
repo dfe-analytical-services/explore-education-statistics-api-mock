@@ -676,6 +676,7 @@ components:
       description: A representation of an error.
       required:
         - message
+        - code
       properties:
         message:
           type: string
