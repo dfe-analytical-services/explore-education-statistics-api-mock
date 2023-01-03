@@ -1,9 +1,13 @@
 import path from 'path';
 import {
+  apprenticeshipsProvidersDetailedDataSet,
+  apprenticeshipsSubjectLevelsHeadlineDataSet,
   benchmarkETDetailedReorderedDataSet,
   benchmarkLtdDmDataSet,
   benchmarkNatDataSet,
   benchmarkQuaDataSet,
+  leoIndustryRegionalDataSet,
+  pupilAttendanceWeeklyDataSet,
   spcEthnicityLanguageDataSet,
   spcYearGroupGenderDataSet,
 } from '../mocks/dataSets';
@@ -13,6 +17,11 @@ const basePath = path.resolve(__dirname, '../data');
 export const dataSetDirs = {
   [spcEthnicityLanguageDataSet.id]: 'spc_pupils_ethnicity_and_language',
   [spcYearGroupGenderDataSet.id]: 'spc_pupils_fsm_ethnicity_yrgp',
+  [pupilAttendanceWeeklyDataSet.id]: 'ees_weekly_data',
+  [leoIndustryRegionalDataSet.id]: 'regional_map_data_ees',
+  [apprenticeshipsProvidersDetailedDataSet.id]: 'app-provider-starts-202122-q4',
+  [apprenticeshipsSubjectLevelsHeadlineDataSet.id]:
+    'app-subject-summary-202122-q4',
   [benchmarkETDetailedReorderedDataSet.id]:
     'e-and-t-geography-detailed_6years_reordered',
   [benchmarkQuaDataSet.id]: 'qua01',

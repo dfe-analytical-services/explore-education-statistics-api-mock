@@ -8,8 +8,8 @@ import { mapValues } from 'lodash';
 import path from 'path';
 import { InternalServerError, ValidationError } from './errors';
 import ApiError from './errors/ApiError';
-import { allDataSets, spcDataSets } from './mocks/dataSets';
-import { publications, spcPublication } from './mocks/publications';
+import { allDataSets } from './mocks/dataSets';
+import { allPublications } from './mocks/publications';
 import { ApiErrorViewModel, LinksViewModel } from './schema';
 import createPaginationLinks from './utils/createPaginationLinks';
 import createSelfLink from './utils/createSelfLink';
@@ -52,10 +52,10 @@ app.get('/api/v1/publications', (req, res) => {
 
   const filteredPublications = (
     typeof search === 'string'
-      ? publications.filter((publication) =>
+      ? allPublications.filter((publication) =>
           publication.title.toLowerCase().includes(search.toLowerCase())
         )
-      : publications
+      : allPublications
   ).map((publication) => ({
     ...publication,
     _links: addHostUrlToLinks(publication._links, req),
@@ -84,7 +84,7 @@ app.get('/api/v1/publications', (req, res) => {
 });
 
 app.get('/api/v1/publications/:publicationId', (req, res) => {
-  const publication = publications.find(
+  const publication = allPublications.find(
     (publication) => publication.id === req.params.publicationId
   );
 
@@ -99,18 +99,24 @@ app.get('/api/v1/publications/:publicationId', (req, res) => {
 });
 
 app.get('/api/v1/publications/:publicationId/data-sets', (req, res) => {
-  switch (req.params.publicationId) {
-    case spcPublication.id:
-      res.status(200).json(
-        spcDataSets.map((dataSet) => ({
-          ...dataSet,
-          _links: addHostUrlToLinks(dataSet._links, req),
-        }))
-      );
-      break;
-    default:
-      res.status(404).json(notFoundError());
+  const publication = allPublications.find(
+    (publication) => publication.id === req.params.publicationId
+  );
+
+  if (!publication) {
+    return res.status(404).json(notFoundError());
   }
+
+  const dataSets = allDataSets.filter(
+    (dataSet) => dataSet.publication.id === publication.id
+  );
+
+  res.status(200).json(
+    dataSets.map(({ viewModel }) => ({
+      ...viewModel,
+      _links: addHostUrlToLinks(viewModel._links, req),
+    }))
+  );
 });
 
 app.get('/api/v1/data-sets/:dataSetId', async (req, res) => {
@@ -124,9 +130,11 @@ app.get('/api/v1/data-sets/:dataSetId', async (req, res) => {
     return res.status(404).json(notFoundError());
   }
 
+  const { viewModel } = matchingDataSet;
+
   return res.status(200).json({
-    ...matchingDataSet,
-    _links: addHostUrlToLinks(matchingDataSet._links, req),
+    ...viewModel,
+    _links: addHostUrlToLinks(viewModel._links, req),
   });
 });
 

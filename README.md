@@ -13,38 +13,38 @@ This is a mock implementation of the upcoming public API for the Explore Educati
 
 The API is an implementation of the OpenAPI specification found in `src/openapi.yaml`. This is
 actually validated at runtime by the server itself, meaning that requests and responses are expected
-to respect the specification. We use [express-openapi-validator](https://github.com/cdimascio/express-openapi-validator) 
+to respect the specification. We use [express-openapi-validator](https://github.com/cdimascio/express-openapi-validator)
 to do this.
 
-Data is queried using [DuckDB](https://duckdb.org/), a powerful in-process OLAP database that 
-allows us to query from data files directly. This allows us to circumvent the need for a traditional 
+Data is queried using [DuckDB](https://duckdb.org/), a powerful in-process OLAP database that
+allows us to query from data files directly. This allows us to circumvent the need for a traditional
 database server as we can deploy the data files as part of the deployment artifact.
 
 ### Investigating DuckDB
 
-As part of this, this API serves as an investigation into the viability of DuckDB as a complete 
+As part of this, this API serves as an investigation into the viability of DuckDB as a complete
 replacement for SQL Server in the current service. This is a potentially very exciting prospect as:
 
 - Horizontal scaling is trivial, especially if deployed in a completely on-demand runtime e.g.
   Azure Function or Azure Container App.
-- Performance is very good because DuckDB is aimed at OLAP workloads such as analyzing big data sets. 
-  Comparatively, SQL Server is aimed at OLTP workloads and doesn't perform as well without using 
+- Performance is very good because DuckDB is aimed at OLAP workloads such as analyzing big data sets.
+  Comparatively, SQL Server is aimed at OLTP workloads and doesn't perform as well without using
   vertical scaling and a bunch of hacks/tricks.
 - Storage is no longer a problem as data can be stored in Blob Storage very cheaply and flexibly (no
-  need to remember to increase database disk size). 
+  need to remember to increase database disk size).
 - It is very cheap compared to the current architecture as Azure SQL is very expensive.
-- The data model is super simple. Querying data is essentially the same as querying a CSV directly. 
+- The data model is super simple. Querying data is essentially the same as querying a CSV directly.
 - Importing data is **much** faster i.e. usually less than a minute in most cases.
 
 To achieve most of these benefits, the data is imported into a very space efficient Parquet format.
 This is further compressed using ZStandard compression to produce ridiculous levels of compression.
 For example:
 
-- `e-and-t-geography-detailed_6years_reordered`: ~1GB csv compresses to 3.4MB 
+- `e-and-t-geography-detailed_6years_reordered`: ~1GB csv compresses to 3.4MB
 - `qua01`: ~715MB csv compresses to 9.4MB
 
-As the data can be compressed to such an extent, it becomes practical to store and query from Blob 
-Storage. In our investigation so far, the easiest way of doing this has been to mount Blob Storage 
+As the data can be compressed to such an extent, it becomes practical to store and query from Blob
+Storage. In our investigation so far, the easiest way of doing this has been to mount Blob Storage
 directly into App Services using path mappings.
 
 ## Scripts
@@ -79,34 +79,57 @@ New data sets can be imported by:
    - `schema.sql`
    - `time_periods.parquet`
 
-3. To add the data set into the mock API, manually add new data set details into `src/mocks/dataSets.ts` e.g.
+3. Create a new publication (if required) for the data set to make it discoverable via the
+   publication endpoints. You can do this manually in `src/mocks/publications.ts`.
 
    ```ts
+   // src/mocks/publications.ts
+
+   export const yourPublication = createPublication({
+     id: 'your-uuid',
+     title: 'Your publication',
+   });
+   
+   export const allPublications = [
+     someOtherPublication,
+     yourPublication,
+   ];
+   ```
+
+4. Manually add data set details to `src/mocks/dataSets.ts` e.g.
+
+   ```ts
+   // src/mocks/dataSets.ts
+   import { yourPublication } from './publications';
+   
    export const yourDataSet = createDataSet({
      id: 'your-uuid',
-     content:
-       '<p>Your content.</p>',
+     content: '<p>Your content.</p>',
      name: 'Your data set',
      geographicLevels: ['...'],
      timePeriods: {
        start: '2015/16',
        end: '2021/22',
      },
+     publication: yourPublication
    });
+
+   export const yourPublicationDataSets = [yourDataSet];
    
-   const allDataSets = [
-     ...
-     yourDataSet,
+   export const allDataSets = [
+     ...someOtherDataSets,
+     ...yourPublicationDataSets,
    ];
    ```
 
-4. Finally, add the data set, and its directory to `src/utils/getDataSetDir.ts`:
+5. Add the data set, and its directory to `src/utils/getDataSetDir.ts`:
 
    ```ts
    import { yourDataSet } from '../mocks/dataSets';
-   
+
    export const dataSetDirs = {
      [yourDataSet.id]: 'your_data_directory',
      ...
    };
    ```
+
