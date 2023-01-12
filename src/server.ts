@@ -172,8 +172,11 @@ app.post('/api/v1/data-sets/:dataSetId/query', async (req, res) => {
 
   const { page = 1, pageSize = 500 } = parsePaginationParams(req);
 
+  const acceptedMedia = ['application/json', 'text/csv'];
+  const acceptsCsv = req.accepts(...acceptedMedia) === 'text/csv';
+
   if (dataSetDirs[dataSetId]) {
-    if (req.accepts().includes('text/csv')) {
+    if (acceptsCsv) {
       const {
         csv,
         paging: { totalPages, totalResults },
@@ -230,7 +233,9 @@ app.post('/api/v1/data-sets/:dataSetId/query', async (req, res) => {
     });
   }
 
-  res.status(404).json(notFoundError());
+  return acceptsCsv
+    ? res.status(404).send('')
+    : res.status(404).json(notFoundError());
 });
 
 app.get('/api/v1/data-sets/:dataSetId/file', (req, res) => {
