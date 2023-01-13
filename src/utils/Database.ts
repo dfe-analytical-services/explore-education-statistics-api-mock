@@ -1,4 +1,10 @@
 import * as duckdb from 'duckdb';
+import type { Callback, TableData } from 'duckdb';
+import { noop } from 'lodash';
+
+export interface StreamResult<T> {
+  [Symbol.asyncIterator](): AsyncIterator<T>;
+}
 
 export default class Database {
   private readonly db: duckdb.Database;
@@ -13,13 +19,13 @@ export default class Database {
    */
   async run(query: string, params: (string | number)[] = []): Promise<void> {
     await new Promise((resolve, reject) => {
-      this.db.run(query, ...params, (err, result) => {
+      this.db.run(query, ...params, ((err, result) => {
         if (err) {
           reject(err);
         } else {
           resolve(result);
         }
-      });
+      }) as Callback<void>);
     });
   }
 
@@ -29,13 +35,13 @@ export default class Database {
    */
   async all<TResult>(query: string, params: any[] = []): Promise<TResult[]> {
     return await new Promise((resolve, reject) => {
-      this.db.all(query, ...params, (err, result) => {
+      this.db.all(query, ...params, ((err, result) => {
         if (err) {
           reject(err);
         } else {
-          resolve(result);
+          resolve(result as TResult[]);
         }
-      });
+      }) as Callback<TableData>);
     });
   }
 
@@ -44,13 +50,13 @@ export default class Database {
    */
   async first<TResult>(query: string, params: any[] = []): Promise<TResult> {
     return await new Promise((resolve, reject) => {
-      this.db.all(query, ...params, (err, result) => {
+      this.db.all(query, ...params, ((err, result) => {
         if (err) {
           reject(err);
         } else {
-          resolve(result[0]);
+          resolve(result[0] as TResult);
         }
-      });
+      }) as Callback<TableData>);
     });
   }
 
@@ -58,14 +64,11 @@ export default class Database {
    * Stream the results of a {@param query} using some{@param params}.
    * Returns a generator.
    */
-  stream<TResult>(
-    query: string,
-    params: any[] = []
-  ): Generator<TResult, void, []> {
-    return this.db.stream(query, ...params);
+  stream<TResult>(query: string, params: any[] = []): StreamResult<TResult> {
+    return this.db.connect().stream(query, ...params) as StreamResult<TResult>;
   }
 
   close(): void {
-    this.db.close();
+    this.db.close(noop);
   }
 }
