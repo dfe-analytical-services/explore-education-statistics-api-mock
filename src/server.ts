@@ -24,6 +24,8 @@ const apiSpec = path.resolve(__dirname, './openapi.yaml');
 
 const app = express();
 
+app.set('trust proxy', 2);
+
 // Middleware
 
 app.use(bodyParser.urlencoded({ extended: false }));
