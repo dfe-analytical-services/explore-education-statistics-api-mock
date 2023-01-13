@@ -14,6 +14,7 @@ import { ApiErrorViewModel, LinksViewModel } from './schema';
 import createPaginationLinks from './utils/createPaginationLinks';
 import createSelfLink from './utils/createSelfLink';
 import { dataSetDirs } from './utils/getDataSetDir';
+import getDataSetFileZipStream from './utils/getDataSetFileZipStream';
 import getDataSetMeta from './utils/getDataSetMeta';
 import parsePaginationParams from './utils/parsePaginationParams';
 import { getHostUrl } from './utils/requestUtils';
@@ -238,11 +239,21 @@ app.post('/api/v1/data-sets/:dataSetId/query', async (req, res) => {
     : res.status(404).json(notFoundError());
 });
 
-app.get('/api/v1/data-sets/:dataSetId/file', (req, res) => {
-  if (allDataSets.some((dataSet) => dataSet.id === req.params.dataSetId)) {
-    return res
+app.get('/api/v1/data-sets/:dataSetId/file', async (req, res) => {
+  const dataSetId = req.params.dataSetId;
+
+  if (dataSetDirs[dataSetId]) {
+    const stream = await getDataSetFileZipStream(dataSetId);
+
+    res
       .status(200)
-      .sendFile(path.resolve(__dirname, '../mocks/dataSetFile.zip'));
+      .contentType('application/zip')
+      .setHeader(
+        'Content-Disposition',
+        `attachment; filename="dataset_${dataSetId}.zip"`
+      );
+
+    return stream.pipe(res);
   }
 
   res.status(404).json(notFoundError());
