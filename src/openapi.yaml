@@ -535,6 +535,7 @@ components:
         - content
         - timePeriods
         - geographicLevels
+        - lastPublished
         - _links
       properties:
         id:
@@ -554,6 +555,10 @@ components:
           description: The geographic levels available in the data set.
           items:
             type: string
+        lastPublished:
+          type: string
+          description: When was data set was last published.
+          format: datetime
         _links:
           $ref: '#/components/schemas/LinksViewModel'
       additionalProperties: false
