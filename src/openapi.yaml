@@ -32,12 +32,14 @@ paths:
           schema:
             type: number
             minimum: 1
+            format: int32
         - name: pageSize
           in: query
           description: The maximum number of results per page.
           required: false
           schema:
             type: number
+            format: int32
             minimum: 0
             maximum: 40
             default: 20
@@ -146,6 +148,7 @@ paths:
           required: false
           schema:
             type: number
+            format: int32
             minimum: 1
         - name: pageSize
           in: query
@@ -153,6 +156,7 @@ paths:
           required: false
           schema:
             type: number
+            format: int32
             minimum: 0
             maximum: 10000
             default: 1000
@@ -274,6 +278,7 @@ components:
         status:
           type: number
           description: The HTTP status code.
+          format: int32
         errors:
           $ref: '#/components/schemas/ErrorDictionary'
     DataSetQuery:
@@ -637,6 +642,7 @@ components:
         totalResults:
           type: number
           description: The total number of results.
+          format: int32
           minimum: 0
         filters:
           type: array
@@ -885,18 +891,22 @@ components:
         page:
           type: number
           description: The current page number.
+          format: int32
           minimum: 0
         pageSize:
           type: number
           description: The maximum number of results per page.
+          format: int32
           minimum: 0
         totalResults:
           type: number
           description: The total number of results across all pages.
+          format: int32
           minimum: 0
         totalPages:
           type: number
           description: The total number of pages.
+          format: int32
           minimum: 0
     PublicationSummaryViewModel:
       type: object
