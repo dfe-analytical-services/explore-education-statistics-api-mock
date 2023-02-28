@@ -154,8 +154,8 @@ paths:
           schema:
             type: number
             minimum: 0
-            maximum: 1000
-            default: 500
+            maximum: 10000
+            default: 1000
         - name: Accept
           in: header
           description: The media type to format the data in. Use `text/csv` to return data in CSV format.
