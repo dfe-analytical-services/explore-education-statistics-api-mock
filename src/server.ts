@@ -174,74 +174,73 @@ app.get('/api/v1/data-sets/:dataSetId/meta', async (req, res) => {
 });
 
 app.post('/api/v1/data-sets/:dataSetId/query', async (req, res) => {
-  const dataSetId = req.params.dataSetId;
+  const { dataSetId } = req.params;
+
+  const acceptsCsv = req.accepts('application/json', 'text/csv') === 'text/csv';
+
+  if (!dataSetDirs[dataSetId]) {
+    return acceptsCsv
+      ? res.status(404).send('')
+      : res.status(404).json(notFoundError());
+  }
 
   const { page = 1, pageSize = 500 } = parsePaginationParams(req);
 
-  const acceptedMedia = ['application/json', 'text/csv'];
-  const acceptsCsv = req.accepts(...acceptedMedia) === 'text/csv';
-
-  if (dataSetDirs[dataSetId]) {
-    if (acceptsCsv) {
-      const {
-        csv,
-        paging: { totalPages, totalResults },
-      } = await runDataSetQueryToCsv(dataSetId, req.body, {
-        page,
-        pageSize,
-      });
-
-      const links = mapValues(
-        createPaginationLinks(req, {
-          page,
-          totalPages,
-        }),
-        (link) => link.href
-      );
-
-      return res
-        .status(200)
-        .contentType('text/csv')
-        .setHeader('Page', page)
-        .setHeader('Page-Size', pageSize)
-        .setHeader('Total-Results', totalResults)
-        .setHeader('Total-Pages', totalPages)
-        .links(links)
-        .send(csv);
-    }
-
-    const response = await runDataSetQuery(dataSetId, req.body, {
+  if (acceptsCsv) {
+    const {
+      csv,
+      paging: { totalPages, totalResults },
+    } = await runDataSetQueryToCsv(dataSetId, req.body, {
       page,
       pageSize,
-      debug: typeof req.query.debug !== 'undefined',
     });
 
-    return res.status(200).send({
-      _links: {
-        self: createSelfLink(req),
-        ...createPaginationLinks(req, {
-          page,
-          totalPages: response.paging.totalPages,
-        }),
-        ...addHostUrlToLinks(
-          {
-            file: {
-              href: `/api/v1/data-sets/${dataSetId}/file`,
-            },
-            meta: {
-              href: `/api/v1/data-sets/${dataSetId}/meta`,
-            },
-          },
-          req
-        ),
-      },
-      ...response,
-    });
+    const links = mapValues(
+      createPaginationLinks(req, {
+        page,
+        totalPages,
+      }),
+      (link) => link.href
+    );
+
+    return res
+      .status(200)
+      .contentType('text/csv')
+      .setHeader('Page', page)
+      .setHeader('Page-Size', pageSize)
+      .setHeader('Total-Results', totalResults)
+      .setHeader('Total-Pages', totalPages)
+      .links(links)
+      .send(csv);
   }
 
-  return acceptsCsv
-    ? res.status(404).send('')
-    : res.status(404).json(notFoundError());
+  const response = await runDataSetQuery(dataSetId, req.body, {
+    page,
+    pageSize,
+    debug: typeof req.query.debug !== 'undefined',
+  });
+
+  return res.status(200).send({
+    _links: {
+      self: createSelfLink(req),
+      ...createPaginationLinks(req, {
+        page,
+        totalPages: response.paging.totalPages,
+      }),
+      ...addHostUrlToLinks(
+        {
+          file: {
+            href: `/api/v1/data-sets/${dataSetId}/file`,
+          },
+          meta: {
+            href: `/api/v1/data-sets/${dataSetId}/meta`,
+          },
+        },
+        req
+      ),
+    },
+    ...response,
+  });
 });
 
 app.get('/api/v1/data-sets/:dataSetId/file', async (req, res) => {

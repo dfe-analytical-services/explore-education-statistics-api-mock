@@ -162,7 +162,11 @@ paths:
             default: 1000
         - name: Accept
           in: header
-          description: The media type to format the data in. Use `text/csv` to return data in CSV format.
+          description: | 
+            The media type to format the response data in (defaults to `application/json`). Allowed options:
+            
+            - `application/json`
+            - `text/csv`
           schema:
             type: string
             default: application/json
