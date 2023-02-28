@@ -189,8 +189,8 @@ paths:
   /api/v1/data-sets/{dataSetId}/file:
     get:
       operationId: GetDataSetFile
-      summary: Get a data set's underlying CSV file
-      description: Get a data set's underlying file (as a csv contained inside a zip).
+      summary: Get a data set file
+      description: Get the entire data set in a specified file format.
       tags:
         - Data Set
       parameters:
@@ -201,6 +201,16 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: Accept
+          in: header
+          description: | 
+            The media type to output the file in (defaults to `text/csv`). Allowed options:
+            
+            - `text/csv` - Outputs the data set as a compressed csv file (defaults to gzip).
+            - `application/zip` - Outputs a zip file containing the data set, its metadata and any relevant files.
+          schema:
+            type: string
+            default: text/csv
       responses:
         '200':
           description: Success. A zip containing the underlying data set file.

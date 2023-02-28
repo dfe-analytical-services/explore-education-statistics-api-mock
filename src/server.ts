@@ -14,7 +14,10 @@ import { ApiErrorViewModel, LinksViewModel } from './schema';
 import createPaginationLinks from './utils/createPaginationLinks';
 import createSelfLink from './utils/createSelfLink';
 import { dataSetDirs } from './utils/getDataSetDir';
-import getDataSetFileZipStream from './utils/getDataSetFileZipStream';
+import {
+  getDataSetCsvFileStream,
+  getDataSetZipFileStream,
+} from './utils/getDataSetFile';
 import getDataSetMeta from './utils/getDataSetMeta';
 import parsePaginationParams from './utils/parsePaginationParams';
 import { getHostUrl } from './utils/requestUtils';
@@ -242,23 +245,38 @@ app.post('/api/v1/data-sets/:dataSetId/query', async (req, res) => {
 });
 
 app.get('/api/v1/data-sets/:dataSetId/file', async (req, res) => {
-  const dataSetId = req.params.dataSetId;
+  const { dataSetId } = req.params;
 
-  if (dataSetDirs[dataSetId]) {
-    const stream = await getDataSetFileZipStream(dataSetId);
+  if (!dataSetDirs[dataSetId]) {
+    return res.status(404).send('');
+  }
+
+  const fileName = `dataset_${dataSetId}`;
+  const accepts = req.accepts('text/csv', 'application/zip');
+
+  if (accepts === 'application/zip') {
+    const meta = await getDataSetMeta(dataSetId);
+    const stream = await getDataSetZipFileStream(dataSetId, meta);
 
     res
       .status(200)
       .contentType('application/zip')
       .setHeader(
         'Content-Disposition',
-        `attachment; filename="dataset_${dataSetId}.zip"`
+        `attachment; filename="${fileName}.zip"`
       );
 
     return stream.pipe(res);
   }
 
-  res.status(404).json(notFoundError());
+  const stream = await getDataSetCsvFileStream(dataSetId);
+
+  res
+    .status(200)
+    .contentType('text/csv')
+    .setHeader('Content-Disposition', `attachment; filename="${fileName}.csv"`);
+
+  return stream.pipe(res);
 });
 
 // Error handling
