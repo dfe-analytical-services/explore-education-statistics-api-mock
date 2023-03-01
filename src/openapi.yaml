@@ -409,10 +409,10 @@ components:
       additionalProperties: false
       example:
         not:
-          - filters:
-              in: [filter1, filter2]
-          - locations:
-              eq: location1
+          filters:
+            in: [filter1, filter2]
+          locations:
+            eq: location1
     DataSetQueryCriteria:
       type: object
       description: A set of criteria to match query results to. All parts must resolve to true to match.
