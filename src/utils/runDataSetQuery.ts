@@ -107,11 +107,11 @@ export async function runDataSetQueryToCsv(
   const state = new DataSetQueryState(dataSetDir);
 
   try {
-    const { results, total } = await runQuery<DataRow>(state, {
-      ...query,
-      page,
-      pageSize,
-    });
+    const { results, total } = await runQuery<DataRow>(
+      state,
+      { ...query, page, pageSize },
+      { formatCsv: true }
+    );
 
     return {
       csv: Papa.unparse(results),
@@ -188,12 +188,16 @@ async function runQuery<TRow extends DataRow>(
       WITH data AS (
           SELECT data.time_period,
                  data.time_identifier,
-                 data.geographic_level,
-                 ${compact([
-                   formatCsv ? '' : 'locations.id AS location_id',
+                 ${[
+                   ...(formatCsv
+                     ? locationCols.map((col) => `data.${col}`)
+                     : [
+                         'data.geographic_level',
+                         'locations.id AS location_id',
+                       ]),
                    ...filterCols.map((col) => `data.${col} as ${col}`),
                    ...indicators.map((i) => `data."${i.name}"`),
-                 ])}
+                 ]}
           FROM '${tableFile('data')}' AS data
           JOIN '${tableFile('locations')}' AS locations
             ON (${locationCols.map((col) => `locations.${col}`)})
