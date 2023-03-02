@@ -604,7 +604,9 @@ function createGeographicLevelsParser(
   return createParser<DataSetQueryCriteriaGeographicLevels, GeographicLevel>({
     state,
     parser: (comparator, values, { path }) => {
-      const params = values.filter((value) => allowedLevels.has(value));
+      const params = values
+        .filter((value) => allowedLevels.has(value))
+        .map((value) => geographicLevelCsvLabels[value]);
 
       if (!params.length) {
         state.appendError(
