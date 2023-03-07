@@ -62,7 +62,19 @@ export const baseGeographicLevelOrder: GeographicLevel[] = [
   'Country',
   'Region',
   'LocalAuthority',
+  'RscRegion',
+  'ParliamentaryConstituency',
   'LocalAuthorityDistrict',
+  'LocalEnterprisePartnership',
+  'EnglishDevolvedArea',
+  'OpportunityArea',
+  'Ward',
+  'MultiAcademyTrust',
+  'Sponsor',
+  'School',
+  'Provider',
+  'PlanningArea',
+  'Institution',
 ];
 
 export const geographicLevelCsvLabels: Record<GeographicLevel, string> = {
