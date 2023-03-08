@@ -16,6 +16,7 @@ import {
   DataSetQueryCriteria,
   DataSetQueryCriteriaFilters,
   DataSetQueryCriteriaGeographicLevels,
+  DataSetQueryCriteriaLocationAttributes,
   DataSetQueryCriteriaLocations,
   DataSetQueryCriteriaTimePeriods,
   GeographicLevel,
@@ -64,13 +65,27 @@ export default async function parseDataSetQueryConditions(
   { facets }: DataSetQuery,
   locationCols: string[]
 ): Promise<QueryFragmentParams> {
-  const rawFilterItemIdSet = new Set<string>();
-  const rawLocationIdSet = new Set<string>();
+  const rawFilterItemIds = new Set<string>();
+  const rawLocationIds = new Set<string>();
+  const rawLocationAttributeCodes = new Set<string>();
 
-  const collectLocationIds = createParser<DataSetQueryCriteriaFilters, string>({
+  const collectLocationIds = createParser<
+    DataSetQueryCriteriaLocations,
+    string
+  >({
     state,
     parser: (comparator, values) => {
-      values.forEach((value) => rawLocationIdSet.add(value));
+      values.forEach((value) => rawLocationIds.add(value));
+    },
+  });
+
+  const collectLocationAttributeCodes = createParser<
+    DataSetQueryCriteriaLocationAttributes,
+    string
+  >({
+    state,
+    parser: (comparator, values) => {
+      values.forEach((value) => rawLocationAttributeCodes.add(value));
     },
   });
 
@@ -81,19 +96,24 @@ export default async function parseDataSetQueryConditions(
     filters: createParser<DataSetQueryCriteriaFilters, string>({
       state,
       parser: (comparator, values) => {
-        values.forEach((value) => rawFilterItemIdSet.add(value));
+        values.forEach((value) => rawFilterItemIds.add(value));
       },
     }),
     geographicLevels: noop,
     locations: collectLocationIds,
-    parentLocations: collectLocationIds,
+    locationAttributes: collectLocationAttributeCodes,
     timePeriods: noop,
   });
 
-  const [{ parentLocationsParser, locationsParser }, filtersParser] =
+  const [locationsParser, locationAttributesParser, filtersParser] =
     await Promise.all([
-      createLocationParsers(state, [...rawLocationIdSet], locationCols),
-      createFiltersParser(state, [...rawFilterItemIdSet]),
+      createLocationsParser(state, [...rawLocationIds], locationCols),
+      createLocationAttributesParser(
+        state,
+        [...rawLocationAttributeCodes],
+        locationCols
+      ),
+      createFiltersParser(state, [...rawFilterItemIds]),
     ]);
 
   // Perform a second pass, which actually constructs the query.
@@ -101,7 +121,7 @@ export default async function parseDataSetQueryConditions(
     filters: filtersParser,
     geographicLevels: createGeographicLevelsParser(state, locationCols),
     locations: locationsParser,
-    parentLocations: parentLocationsParser,
+    locationAttributes: locationAttributesParser,
     timePeriods: createTimePeriodsParser(state),
   });
 }
@@ -304,14 +324,11 @@ async function createFiltersParser(
   });
 }
 
-async function createLocationParsers(
+async function createLocationsParser(
   state: DataSetQueryState,
   rawLocationIds: string[],
   locationCols: string[]
-): Promise<{
-  locationsParser: CriteriaParser<DataSetQueryCriteriaLocations>;
-  parentLocationsParser: CriteriaParser<DataSetQueryCriteriaLocations>;
-}> {
+) {
   const locationIds = parseIdLikeStrings(
     rawLocationIds,
     state.locationIdHasher
@@ -333,7 +350,7 @@ async function createLocationParsers(
     });
   });
 
-  const locationsParser = createParser<DataSetQueryCriteriaLocations, string>({
+  return createParser<DataSetQueryCriteriaLocations, string>({
     state,
     parser: (comparator, values, { path }) => {
       const matchingLocations = compact(
@@ -376,154 +393,92 @@ async function createLocationParsers(
       }
     },
   });
-
-  const parentLocationsParser = await createParentLocationParser(
-    state,
-    locations,
-    locationsByRawId
-  );
-
-  return {
-    locationsParser,
-    parentLocationsParser,
-  };
 }
 
-async function createParentLocationParser(
+async function createLocationAttributesParser(
   state: DataSetQueryState,
-  locations: Location[],
-  locationsByRawId: Dictionary<Location | undefined>
-): Promise<CriteriaParser<DataSetQueryCriteriaLocations>> {
-  const { db, tableFile } = state;
+  locationAttributeCodes: string[],
+  locationCols: string[]
+): Promise<CriteriaParser<DataSetQueryCriteriaLocationAttributes>> {
+  const locationCodeCols = Object.values(geographicLevelColumns)
+    .filter((cols) => locationCols.includes(cols.code))
+    .map((cols) => cols.code);
 
-  // Create a temporary table here so that we can reference it in the parent locations
-  // query fragment.  We can't reference CTE tables in sub-queries, so the fragment
-  // becomes really verbose without this. Additionally, if we load just the filtered
-  // locations into memory, we don't need to join on all locations multiple times.
-  await db.run(
-    `
-    CREATE TABLE locations_filtered AS 
-    SELECT * FROM '${tableFile('locations')}' 
-    WHERE ${
-      // Default to false as there are no locations - hence the table should be empty
-      locations.length > 0 ? `id IN (${placeholders(locations)})` : 'false'
-    }`,
-    locations.map((location) => location.id)
+  const locations = await getLocationsByAttributes(
+    state,
+    locationAttributeCodes,
+    locationCodeCols
   );
+  const locationsByCode = locationAttributeCodes.reduce<
+    Record<string, Location | undefined>
+  >((acc, attributeCode) => {
+    acc[attributeCode] = locations.find((location) =>
+      locationCodeCols.some((col) => location[col] === attributeCode)
+    );
 
-  return createParser<DataSetQueryCriteriaLocations, string>({
+    return acc;
+  }, {});
+
+  return createParser<DataSetQueryCriteriaLocationAttributes, string>({
     state,
     parser: (comparator, values, { path }) => {
-      const matchingLocations = compact(
-        values.map((value) => locationsByRawId[value])
-      );
+      const matchingValues = values.filter((value) => !!locationsByCode[value]);
 
-      const getCols = (
-        locations: Location[]
-      ): { data: string[]; locations: string[] } => {
-        const cols = locations.reduce<Set<string>>((acc, location) => {
-          Object.entries(location).forEach(([col, value]) => {
-            if (value && col !== 'geographic_level' && col !== 'id') {
-              acc.add(col);
-            }
-          });
-
-          return acc;
-        }, new Set());
-
-        return {
-          data: [...cols].map((col) => `data.${col}`),
-          locations: [...cols].map((col) => `locations_filtered.${col}`),
-        };
-      };
-
-      const locationsByGeographicLevel = groupBy(
-        matchingLocations,
-        (location) => location.geographic_level
-      );
-
-      if (matchingLocations.length < values.length) {
+      if (matchingValues.length < values.length) {
         state.appendError(
           path,
           genericErrors.notFound({
-            items: values.filter((value) => !locationsByRawId[value]),
+            items: values.filter((value) => !locationsByCode[value]),
           })
         );
       }
 
-      const params = matchingLocations.map((location) => location.id);
-
-      // (...columns) in (select (...columns) from locations_filtered where id = ?)
-      //    and data.geographic_level != '<level>'
+      const params = locationCodeCols.flatMap((_) => matchingValues);
 
       switch (comparator) {
         case 'eq': {
-          if (!params.length) {
-            return { fragment: 'false' };
-          }
-
-          const [location] = matchingLocations;
-          const cols = getCols([location]);
-
           return {
-            fragment: `(${cols.data}) = (SELECT (${cols.locations}) FROM locations_filtered WHERE id = ?)
-              AND data.geographic_level != '${location.geographic_level}'`,
+            fragment: `(${locationCodeCols
+              .map((col) => `locations.${col} = ?`)
+              .join(' OR ')})`,
             params,
           };
         }
         case 'notEq': {
-          if (!params.length) {
-            return { fragment: 'true' };
-          }
-
-          const [location] = matchingLocations;
-          const cols = getCols([location]);
-
           return {
-            fragment: `(${cols.data}) != (SELECT (${cols.locations}) FROM locations_filtered WHERE id = ?)
-              AND data.geographic_level != '${location.geographic_level}'`,
+            fragment: `(${locationCodeCols
+              .map((col) => `locations.${col} = ?`)
+              .join(' OR ')})`,
             params,
           };
         }
         case 'in': {
-          if (!params.length) {
-            return undefined;
-          }
-
-          return {
-            fragment: Object.entries(locationsByGeographicLevel)
-              .map(([geographicLevel, locations]) => {
-                const cols = getCols(locations);
-
-                return `((${cols.data}) IN (SELECT (${
-                  cols.locations
-                }) FROM locations_filtered WHERE id IN (${placeholders(
-                  locations
-                )})) AND data.geographic_level != '${geographicLevel}')`;
-              })
-              .join(' AND '),
-            params,
-          };
+          return params.length > 0
+            ? {
+                fragment: `(${locationCodeCols
+                  .map(
+                    (col) =>
+                      `locations.${col} IN (${placeholders(matchingValues)})`
+                  )
+                  .join(' OR ')})`,
+                params,
+              }
+            : undefined;
         }
         case 'notIn': {
-          if (!params.length) {
-            return undefined;
-          }
-
-          return {
-            fragment: Object.entries(locationsByGeographicLevel)
-              .map(([geographicLevel, locations]) => {
-                const cols = getCols(locations);
-
-                return `((${cols.data}) NOT IN (SELECT (${
-                  cols.locations
-                }) FROM locations_filtered WHERE id IN (${placeholders(
-                  locations
-                )})) AND data.geographic_level != '${geographicLevel}')`;
-              })
-              .join(' AND '),
-            params,
-          };
+          return params.length > 0
+            ? {
+                fragment: `(${locationCodeCols
+                  .map(
+                    (col) =>
+                      `locations.${col} NOT IN (${placeholders(
+                        matchingValues
+                      )})`
+                  )
+                  .join(' OR ')})`,
+                params,
+              }
+            : undefined;
         }
       }
     },
@@ -692,5 +647,29 @@ async function getLocations(
           })
           .join(' OR ')}`,
     ids
+  );
+}
+
+async function getLocationsByAttributes(
+  { db, tableFile }: DataSetQueryState,
+  locationAttributeCodes: string[],
+  locationCodeCols: string[]
+): Promise<Location[]> {
+  const codes = compact(locationAttributeCodes);
+
+  if (!codes.length) {
+    return [];
+  }
+
+  const codePlaceholders = indexPlaceholders(codes);
+
+  return await db.all<Location>(
+    `
+      SELECT *
+      FROM '${tableFile('locations')}'
+      WHERE ${locationCodeCols
+        .map((col) => `${col} IN (${codePlaceholders})`)
+        .join(' OR ')}`,
+    codes
   );
 }

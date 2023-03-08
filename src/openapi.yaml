@@ -421,8 +421,8 @@ components:
           $ref: '#/components/schemas/DataSetQueryCriteriaFilters'
         locations:
           $ref: '#/components/schemas/DataSetQueryCriteriaLocations'
-        parentLocations:
-          $ref: '#/components/schemas/DataSetQueryCriteriaLocations'
+        locationAttributes:
+          $ref: '#/components/schemas/DataSetQueryCriteriaLocationAttributes'
         geographicLevels:
           $ref: '#/components/schemas/DataSetQueryCriteriaGeographicLevels'
         timePeriods:
@@ -433,7 +433,7 @@ components:
           in: [filter1, filter2]
         locations:
           notIn: [location1, location2]
-        parentLocations:
+        locationAttributes:
           eq: location3
         geographicLevels:
           eq: LocalAuthority
@@ -525,6 +525,30 @@ components:
         notIn:
           type: array
           description: Results must not have any locations matching the given IDs.
+          items:
+            type: string
+      additionalProperties: false
+    DataSetQueryCriteriaLocationAttributes:
+      type: object
+      description: | 
+        The codes of location attributes to match results by.
+        
+        Location attributes are specific geographic attributes of a location e.g. its country, region, etc.
+      properties:
+        eq:
+          type: string
+          description: Results must have a location attribute matching the given code.
+        notEq:
+          type: string
+          description: Results must not have a location attribute that matches the given code.
+        in:
+          type: array
+          description: Results must have at least one location attribute matching the given codes.
+          items:
+            type: string
+        notIn:
+          type: array
+          description: Results must not have any location attributes matching the given codes.
           items:
             type: string
       additionalProperties: false
