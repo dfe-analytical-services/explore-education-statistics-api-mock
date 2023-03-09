@@ -1,14 +1,13 @@
-import { invert } from 'lodash';
 import {
   DataSetMetaViewModel,
   FilterMetaViewModel,
-  GeographicLevel,
   IndicatorMetaViewModel,
+  LocationMetaAttributeViewModel,
   LocationMetaViewModel,
   TimePeriodMetaViewModel,
   Unit,
 } from '../schema';
-import { Filter, Indicator, TimePeriod } from '../types/dbSchemas';
+import { Filter, Indicator, Location, TimePeriod } from '../types/dbSchemas';
 import Database from './Database';
 import { tableFile } from './dataSetPaths';
 import formatTimePeriodLabel from './formatTimePeriodLabel';
@@ -19,8 +18,9 @@ import {
   createLocationIdHasher,
 } from './idHashers';
 import {
+  columnsToGeographicLevel,
+  csvLabelsToGeographicLevels,
   geographicLevelColumns,
-  geographicLevelCsvLabels,
 } from './locationConstants';
 import parseTimePeriodCode from './parseTimePeriodCode';
 
@@ -71,57 +71,76 @@ async function getLocationsMeta(
   db: Database,
   dataSetDir: string
 ): Promise<Dictionary<LocationMetaViewModel[]>> {
-  const filePath = tableFile(dataSetDir, 'locations');
+  const locations = await db.all<Location>(
+    `SELECT * FROM '${tableFile(dataSetDir, 'locations')}'`
+  );
 
-  const levels = (
-    await db.all<{ level: string }>(
-      `SELECT DISTINCT geographic_level AS level FROM '${filePath}';`
-    )
-  ).map((row) => row.level);
-
-  const geographicLevelLabels = invert(geographicLevelCsvLabels);
+  if (locations.length === 0) {
+    return {};
+  }
 
   const hasher = createLocationIdHasher(dataSetDir);
 
-  const locationsMeta: Dictionary<LocationMetaViewModel[]> = {};
+  return locations.reduce<Dictionary<LocationMetaViewModel[]>>(
+    (acc, location) => {
+      const mainLevel = csvLabelsToGeographicLevels[location.geographic_level];
 
-  for (const level of levels) {
-    const geographicLevel = geographicLevelLabels[level] as
-      | GeographicLevel
-      | undefined;
-
-    if (!geographicLevel) {
-      throw new Error(`Invalid geographic level: ${level}`);
-    }
-
-    const cols = [
-      'id',
-      `${geographicLevelColumns[geographicLevel].code} AS code`,
-      `${geographicLevelColumns[geographicLevel].name} AS label`,
-    ];
-
-    const levelLocations = await db.all<{
-      id: number;
-      code: string;
-      label: string;
-    }>(
-      `SELECT ${cols} FROM '${filePath}' WHERE geographic_level = ? ORDER BY label ASC`,
-      [level]
-    );
-
-    locationsMeta[geographicLevel] = levelLocations.map<LocationMetaViewModel>(
-      (location) => {
-        return {
-          id: hasher.encode(location.id),
-          code: location.code,
-          label: location.label,
-          level: geographicLevel,
-        };
+      if (!acc[mainLevel]) {
+        acc[mainLevel] = [];
       }
-    );
-  }
 
-  return locationsMeta;
+      const mainLevelCols = geographicLevelColumns[mainLevel];
+
+      const attributeCols = Object.entries(location)
+        .filter(([col, value]) => {
+          const level = columnsToGeographicLevel[col];
+
+          return (
+            value &&
+            col !== mainLevelCols.code &&
+            col !== mainLevelCols.name &&
+            (col === geographicLevelColumns[level]?.name ||
+              col === geographicLevelColumns[level]?.code)
+          );
+        })
+        .map(([col]) => col);
+
+      let attributes: Dictionary<LocationMetaAttributeViewModel> | undefined;
+
+      if (attributeCols.length > 0) {
+        attributes = attributeCols.reduce<
+          Dictionary<LocationMetaAttributeViewModel>
+        >((acc, col) => {
+          const level = columnsToGeographicLevel[col];
+
+          if (!acc[level]) {
+            acc[level] = {};
+          }
+
+          if (geographicLevelColumns[level].name === col) {
+            acc[level].label = location[col];
+          }
+
+          if (geographicLevelColumns[level].code === col) {
+            acc[level].code = location[col];
+          }
+
+          return acc;
+        }, {});
+      }
+
+      acc[mainLevel].push({
+        id: hasher.encode(location.id),
+        code: location[mainLevelCols.code],
+        label: location[mainLevelCols.name],
+        level: mainLevel,
+        attributes,
+      });
+
+      return acc;
+    },
+    {}
+  );
 }
 
 async function getFiltersMeta(

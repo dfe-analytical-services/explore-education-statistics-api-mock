@@ -798,6 +798,7 @@ components:
       type: string
       description: The geographic group/level for a data point's location.
       enum:
+        - Country
         - EnglishDevolvedArea
         - LocalAuthority
         - LocalAuthorityDistrict
@@ -805,16 +806,15 @@ components:
         - Institution
         - MayoralCombinedAuthority
         - MultiAcademyTrust
-        - Country
         - OpportunityArea
         - ParliamentaryConstituency
+        - PlanningArea
         - Provider
         - Region
         - RscRegion
         - School
         - Sponsor
         - Ward
-        - PlanningArea
     IndicatorMetaViewModel:
       type: object
       description: The type of measurement taken by a data point.
@@ -873,33 +873,43 @@ components:
       description: The location that a data point was measured at.
       required:
         - id
-        - level
         - label
+        - level
         - code
+      additionalProperties: false
       properties:
         id:
           type: string
           description: The ID of this location.
         level:
           $ref: '#/components/schemas/GeographicLevel'
-        options:
-          type: array
-          description: The child locations associated to this location.
-          items:
-            $ref: '#/components/schemas/LocationMetaViewModel'
         label:
           type: string
-          description: The human-readable label for this location.
+          description: The human-readable label of this location.
         code:
           type: string
           description: |
-            The location's geographic code. 
+            The geographic code of this location.
             
             These can be:
             
             - ONS codes for higher geographic levels (countries, local authorities, etc)
             - DfE codes for lower geographic levels (schools, providers, etc)
-      additionalProperties: false
+        attributes:
+          type: object
+          description: Other geographic attributes of this location e.g. its country, region, etc.
+          additionalProperties:
+            $ref: '#/components/schemas/LocationMetaAttributeViewModel'
+    LocationMetaAttributeViewModel:
+      type: object
+      description: A geographic attribute of a location e.g. its country, region, etc.
+      properties:
+        label:
+          type: string
+          description: The human-readable label of this location attribute.
+        code:
+          type: string
+          description: The geographic code of this location attribute.
     PagedPublicationSummaryViewModel:
       type: object
       additionalProperties: false

@@ -41,7 +41,11 @@ export const geographicLevelColumns: Record<
   Provider: { code: 'provider_ukprn', name: 'provider_name' },
   Region: { code: 'region_code', name: 'region_name' },
   RscRegion: { code: 'rsc_region_code', name: 'rsc_region_name' },
-  School: { code: 'school_urn', name: 'school_name' },
+  School: {
+    code: 'school_urn',
+    name: 'school_name',
+    other: ['school_laestab'],
+  },
   Sponsor: { code: 'sponsor_id', name: 'sponsor_name' },
   Ward: { code: 'ward_code', name: 'ward_name' },
 };
