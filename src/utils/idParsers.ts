@@ -1,9 +1,16 @@
 import Hashids from 'hashids';
 
-export default function parseIdLikeStrings(
-  ids: string[],
-  idHasher: Hashids
-): string[] {
+export function parseIdHashes(ids: string[], idHasher: Hashids): number[] {
+  return ids.map((id) => {
+    try {
+      return idHasher.decode(id)[0] as number;
+    } catch (err) {
+      return Number.NaN;
+    }
+  });
+}
+
+export function parseIdLikeStrings(ids: string[], idHasher: Hashids): string[] {
   return ids.map((id) => {
     try {
       return idHasher.decode(id)[0].toString();

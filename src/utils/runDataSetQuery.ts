@@ -12,12 +12,12 @@ import { tableFile } from './dataSetPaths';
 import DataSetQueryState from './DataSetQueryState';
 import getDataSetDir from './getDataSetDir';
 import { createIndicatorIdHasher } from './idHashers';
+import { parseIdLikeStrings } from './idParsers';
 import {
   csvLabelsToGeographicLevels,
   geographicLevelColumns,
 } from './locationConstants';
 import parseDataSetQueryConditions from './parseDataSetQueryConditions';
-import parseIdLikeStrings from './parseIdLikeStrings';
 import parseTimePeriodCode from './parseTimePeriodCode';
 import { indexPlaceholders } from './queryUtils';
 

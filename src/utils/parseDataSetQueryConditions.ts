@@ -26,14 +26,13 @@ import { Filter, Location } from '../types/dbSchemas';
 import { genericErrors } from '../validations/errors';
 import { criteriaWarnings } from '../validations/warnings';
 import DataSetQueryState from './DataSetQueryState';
+import { parseIdHashes, parseIdLikeStrings } from './idParsers';
 import {
   columnsToGeographicLevel,
   csvLabelsToGeographicLevels,
   geographicLevelColumns,
   geographicLevelCsvLabels,
 } from './locationConstants';
-import parseIdHashes from './parseIdHashes';
-import parseIdLikeStrings from './parseIdLikeStrings';
 import { indexPlaceholders, placeholders } from './queryUtils';
 import { timePeriodCodeIdentifiers } from './timePeriodConstants';
 
