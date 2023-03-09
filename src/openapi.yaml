@@ -574,8 +574,8 @@ components:
       description: Describes and provides high-level information about a data set.
       required:
         - id
-        - name
-        - content
+        - title
+        - description
         - timePeriods
         - geographicLevels
         - lastPublished
@@ -585,10 +585,10 @@ components:
           type: string
           format: uuid
           description: The ID of the data set.
-        name:
+        title:
           type: string
-          description: The name of the data set.
-        content:
+          description: The title of the data set.
+        description:
           type: string
           description: A description of the data set's contents.
         timePeriods:
