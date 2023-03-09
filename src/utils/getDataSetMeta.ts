@@ -118,7 +118,7 @@ async function getLocationsMeta(
           }
 
           if (geographicLevelColumns[level].name === col) {
-            acc[level].label = location[col];
+            acc[level].name = location[col];
           }
 
           if (geographicLevelColumns[level].code === col) {
@@ -132,7 +132,7 @@ async function getLocationsMeta(
       acc[mainLevel].push({
         id: hasher.encode(location.id),
         code: location[mainLevelCols.code],
-        label: location[mainLevelCols.name],
+        name: location[mainLevelCols.name],
         level: mainLevel,
         attributes,
       });

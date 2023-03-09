@@ -873,7 +873,7 @@ components:
       description: The location that a data point was measured at.
       required:
         - id
-        - label
+        - name
         - level
         - code
       additionalProperties: false
@@ -883,9 +883,9 @@ components:
           description: The ID of this location.
         level:
           $ref: '#/components/schemas/GeographicLevel'
-        label:
+        name:
           type: string
-          description: The human-readable label of this location.
+          description: The name of this location.
         code:
           type: string
           description: |
@@ -904,9 +904,9 @@ components:
       type: object
       description: A geographic attribute of a location e.g. its country, region, etc.
       properties:
-        label:
+        name:
           type: string
-          description: The human-readable label of this location attribute.
+          description: The name of this location attribute.
         code:
           type: string
           description: The geographic code of this location attribute.
