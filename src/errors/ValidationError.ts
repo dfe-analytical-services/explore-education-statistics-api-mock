@@ -68,9 +68,11 @@ function normalizeOpenApiValidationErrors(errors: unknown[]): ErrorDictionary {
 }
 
 function normalizePath(path: string): string {
-  if (path.includes('/')) {
-    return '';
-  }
-
-  return path.replace(/\.(body|query|params)\./g, '');
+  // Convert path to JSONPath syntax e.g. a.b[0].c
+  return path
+    .replace(/\/(body|query|params)\//, '')
+    .split('/')
+    .map((part) => (Number.isInteger(Number(part)) ? `[${part}]` : `.${part}`))
+    .join('')
+    .replace('.', '');
 }
