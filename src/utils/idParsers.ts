@@ -22,3 +22,17 @@ export function parseIdLikeStrings(ids: string[], idHasher: Hashids): string[] {
     }
   });
 }
+
+export function parseIdHashesAndCodes(
+  ids: string[],
+  idHasher: Hashids
+): (string | number)[] {
+  return ids.map((id) => {
+    try {
+      const decoded = idHasher.decode(id)[0];
+      return typeof decoded === 'number' ? decoded : id;
+    } catch (err) {
+      return id;
+    }
+  });
+}
