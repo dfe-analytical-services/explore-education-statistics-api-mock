@@ -1,9 +1,11 @@
-import { compact, keyBy, mapValues, pickBy, uniq } from 'lodash';
+import Hashids from 'hashids';
+import { compact, keyBy, mapValues, orderBy, uniq } from 'lodash';
 import Papa from 'papaparse';
 import { ValidationError } from '../errors';
 import {
   DataSetQuery,
   DataSetResultsViewModel,
+  GeographicLevel,
   PagingViewModel,
 } from '../schema';
 import { DataRow, Indicator } from '../types/dbSchemas';
@@ -14,12 +16,16 @@ import getDataSetDir from './getDataSetDir';
 import { createIndicatorIdHasher } from './idHashers';
 import { parseIdLikeStrings } from './idParsers';
 import {
+  baseGeographicLevelOrder,
+  columnsToGeographicLevel,
   csvLabelsToGeographicLevels,
   geographicLevelColumns,
 } from './locationConstants';
 import parseDataSetQueryConditions from './parseDataSetQueryConditions';
 import parseTimePeriodCode from './parseTimePeriodCode';
 import { indexPlaceholders } from './queryUtils';
+
+const DEBUG_DELIMITER = ' :: ';
 
 interface DataRowWithLocation extends DataRow {
   location_id: number;
@@ -34,7 +40,7 @@ export async function runDataSetQuery(
   const state = new DataSetQueryState(dataSetDir);
 
   try {
-    const { results, total, filterCols, indicators } =
+    const { results, total, filterCols, indicators, geographicLevels } =
       await runQuery<DataRowWithLocation>(
         state,
         { ...query, page, pageSize },
@@ -56,6 +62,51 @@ export async function runDataSetQuery(
       });
     }
 
+    const orderedGeographicLevels = orderBy(
+      [...geographicLevels],
+      (level: GeographicLevel) => baseGeographicLevelOrder.indexOf(level)
+    );
+
+    const hashedId = (id: number | string, hasher: Hashids) => {
+      if (debug) {
+        const [idPart, label] = id.toString().split(DEBUG_DELIMITER, 2);
+        return hasher.encode(Number(idPart)) + DEBUG_DELIMITER + label;
+      }
+
+      return hasher.encode(Number(id));
+    };
+
+    const hashLocationId = (result: DataRowWithLocation) => {
+      const hashedId = state.locationIdHasher.encode(result.location_id);
+
+      if (debug) {
+        const attributes = orderedGeographicLevels.reduce<string[]>(
+          (acc, level) => {
+            const levelCols = geographicLevelColumns[level];
+            const levelName = result[levelCols.name];
+            const levelCode = result[levelCols.code];
+
+            if (typeof levelName === 'string') {
+              let next = levelName;
+
+              if (!!levelCode) {
+                next += ` (${levelCode})`;
+              }
+
+              acc.push(next);
+            }
+
+            return acc;
+          },
+          []
+        );
+
+        return hashedId + DEBUG_DELIMITER + attributes.join(', ');
+      }
+
+      return hashedId;
+    };
+
     return {
       paging: {
         page,
@@ -68,10 +119,7 @@ export async function runDataSetQuery(
       results: results.map((result) => {
         return {
           filters: unquotedFilterCols.reduce<Dictionary<string>>((acc, col) => {
-            acc[col] = debug
-              ? result[col].toString()
-              : state.filterIdHasher.encode(Number(result[col]));
-
+            acc[col] = hashedId(result[col], state.filterIdHasher);
             return acc;
           }, {}),
           timePeriod: {
@@ -79,9 +127,7 @@ export async function runDataSetQuery(
             year: Number(result.time_period),
           },
           geographicLevel: csvLabelsToGeographicLevels[result.geographic_level],
-          locationId: debug
-            ? result.location_id.toString()
-            : state.locationIdHasher.encode(result.location_id),
+          locationId: hashLocationId(result),
           values: mapValues(indicatorsById, (indicator) =>
             result[indicator.name].toString()
           ),
@@ -135,6 +181,7 @@ interface RunQueryOptions {
 interface RunQueryReturn<TRow extends DataRow = DataRow> {
   results: TRow[];
   total: number;
+  geographicLevels: Set<GeographicLevel>;
   locationCols: string[];
   filterCols: string[];
   indicators: Indicator[];
@@ -160,14 +207,30 @@ async function runQuery<TRow extends DataRow>(
     getIndicators(state, indicatorIds),
   ]);
 
-  const where = await parseDataSetQueryConditions(state, query, locationCols);
+  const geographicLevels = locationCols.reduce((acc, col) => {
+    const level = columnsToGeographicLevel[col];
+
+    if (level) {
+      acc.add(level);
+    }
+
+    return acc;
+  }, new Set<GeographicLevel>());
+
+  const locationsTableCols = locationCols.map((col) => `locations.${col}`);
+  const dataTableLocationCols = locationCols.map((col) => `data.${col}`);
+
+  const where = await parseDataSetQueryConditions(
+    state,
+    query,
+    geographicLevels
+  );
 
   const totalQuery = `
       SELECT count(*) AS total
       FROM '${tableFile('data')}' AS data
       JOIN '${tableFile('locations')}' AS locations
-        ON (${locationCols.map((col) => `locations.${col}`)})
-          = (${locationCols.map((col) => `data.${col}`)})
+        ON (${locationsTableCols}) = (${dataTableLocationCols})
       ${where.fragment ? `WHERE ${where.fragment}` : ''}
   `;
 
@@ -189,36 +252,35 @@ async function runQuery<TRow extends DataRow>(
           SELECT data.time_period,
                  data.time_identifier,
                  ${[
-                   ...(formatCsv
-                     ? locationCols.map((col) => `data.${col}`)
-                     : [
-                         'data.geographic_level',
-                         'locations.id AS location_id',
-                       ]),
+                   'locations.id AS location_id',
+                   ...dataTableLocationCols,
                    ...filterCols.map((col) => `data.${col} as ${col}`),
                    ...indicators.map((i) => `data."${i.name}"`),
                  ]}
           FROM '${tableFile('data')}' AS data
           JOIN '${tableFile('locations')}' AS locations
-            ON (${locationCols.map((col) => `locations.${col}`)})
-                = (${locationCols.map((col) => `data.${col}`)})
+            ON (${locationsTableCols}) = (${dataTableLocationCols})
           JOIN '${tableFile('time_periods')}' AS time_periods
             ON (time_periods.year, time_periods.identifier) 
                 = (data.time_period, data.time_identifier)
           ${where.fragment ? `WHERE ${where.fragment}` : ''}
-          ORDER BY ${getOrderings(query, state, locationCols, filterCols)}
+          ORDER BY ${getOrderings(query, state, filterCols, geographicLevels)}
           LIMIT ?
           OFFSET ? 
       )
-      SELECT data.* REPLACE(${filterCols.map((col) => {
-        if (formatCsv) {
-          return `${col}.label AS ${col}`;
-        }
+      SELECT data.* REPLACE(
+        ${filterCols.map((col) => {
+          if (formatCsv) {
+            return `${col}.label AS ${col}`;
+          }
 
-        return `${
-          debug ? `concat(${col}.id, '::', ${col}.label)` : `${col}.id`
-        } AS ${col}`;
-      })})
+          return `${
+            debug
+              ? `concat(${col}.id, '${DEBUG_DELIMITER}', ${col}.label)`
+              : `${col}.id`
+          } AS ${col}`;
+        })}
+      )
       FROM data ${filterCols
         .map(
           (filter) =>
@@ -259,6 +321,7 @@ async function runQuery<TRow extends DataRow>(
   return {
     results,
     total,
+    geographicLevels,
     locationCols,
     filterCols,
     indicators,
@@ -268,8 +331,8 @@ async function runQuery<TRow extends DataRow>(
 function getOrderings(
   query: DataSetQuery,
   state: DataSetQueryState,
-  locationCols: string[],
-  filterCols: string[]
+  filterCols: string[],
+  geographicLevels: Set<GeographicLevel>
 ): string[] {
   // Default to ordering by descending time periods
   if (!query.sort) {
@@ -282,9 +345,6 @@ function getOrderings(
 
   // Remove quotes wrapping column name
   const allowedFilterCols = new Set(filterCols.map((col) => col.slice(1, -1)));
-  const allowedGeographicLevelCols = pickBy(geographicLevelColumns, (col) =>
-    locationCols.includes(col.code)
-  );
 
   const sorts: string[] = [];
   const invalidSorts = new Set<string>();
@@ -297,8 +357,9 @@ function getOrderings(
       return;
     }
 
-    if (allowedGeographicLevelCols[sort.name]) {
-      sorts.push(`${allowedGeographicLevelCols[sort.name].name} ${direction}`);
+    if (geographicLevels.has(sort.name as GeographicLevel)) {
+      const level = sort.name as GeographicLevel;
+      sorts.push(`${geographicLevelColumns[level].name} ${direction}`);
       return;
     }
 
@@ -316,11 +377,7 @@ function getOrderings(
       code: 'sort.notAllowed',
       details: {
         items: [...invalidSorts],
-        allowed: [
-          'TimePeriod',
-          ...allowedFilterCols,
-          ...Object.keys(allowedGeographicLevelCols),
-        ],
+        allowed: ['TimePeriod', ...allowedFilterCols, ...geographicLevels],
       },
     });
   }

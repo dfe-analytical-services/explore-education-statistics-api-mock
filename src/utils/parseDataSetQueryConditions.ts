@@ -19,7 +19,6 @@ import { criteriaWarnings } from '../validations/warnings';
 import DataSetQueryState from './DataSetQueryState';
 import { parseIdHashes, parseIdHashesAndCodes } from './idParsers';
 import {
-  columnsToGeographicLevel,
   geographicLevelColumns,
   geographicLevelCsvLabels,
 } from './locationConstants';
@@ -52,7 +51,7 @@ export type FilterItem = Pick<Filter, 'id' | 'label' | 'group_name'>;
 export default async function parseDataSetQueryConditions(
   state: DataSetQueryState,
   { facets }: DataSetQuery,
-  locationCols: string[]
+  geographicLevels: Set<GeographicLevel>
 ): Promise<QueryFragmentParams> {
   const rawFilterItemIds = new Set<string>();
   const rawLocationIds = new Set<string>();
@@ -83,14 +82,14 @@ export default async function parseDataSetQueryConditions(
   });
 
   const [locationsParser, filtersParser] = await Promise.all([
-    createLocationsParser(state, [...rawLocationIds], locationCols),
+    createLocationsParser(state, [...rawLocationIds], geographicLevels),
     createFiltersParser(state, [...rawFilterItemIds]),
   ]);
 
   // Perform a second pass, which actually constructs the query.
   return parseClause(facets, 'facets', {
     filters: filtersParser,
-    geographicLevels: createGeographicLevelsParser(state, locationCols),
+    geographicLevels: createGeographicLevelsParser(state, geographicLevels),
     locations: locationsParser,
     timePeriods: createTimePeriodsParser(state),
   });
@@ -299,7 +298,7 @@ async function createFiltersParser(
 async function createLocationsParser(
   state: DataSetQueryState,
   rawLocationIds: string[],
-  locationCols: string[]
+  geographicLevels: Set<GeographicLevel>
 ) {
   const { tableFile } = state;
 
@@ -315,9 +314,9 @@ async function createLocationsParser(
     string[]
   ];
 
-  const locationCodeCols = Object.values(geographicLevelColumns)
-    .filter((cols) => locationCols.includes(cols.code))
-    .map((cols) => cols.code);
+  const locationCodeCols = [...geographicLevels].map(
+    (level) => geographicLevelColumns[level].code
+  );
 
   const [matchingLocationIds, matchingLocationCodes] = await Promise.all([
     getMatchingLocationIds(state, ids),
@@ -510,25 +509,20 @@ function createTimePeriodsParser(
 
 function createGeographicLevelsParser(
   state: DataSetQueryState,
-  locationCols: string[]
+  geographicLevels: Set<GeographicLevel>
 ): CriteriaParser<DataSetQueryCriteriaGeographicLevels> {
-  const allowedLevels = locationCols.reduce((acc, col) => {
-    acc.add(columnsToGeographicLevel[col]);
-    return acc;
-  }, new Set<GeographicLevel>());
-
   return createParser<DataSetQueryCriteriaGeographicLevels, GeographicLevel>({
     state,
     parser: (comparator, values, { path }) => {
       const params = values
-        .filter((value) => allowedLevels.has(value))
+        .filter((value) => geographicLevels.has(value))
         .map((value) => geographicLevelCsvLabels[value]);
 
       if (!params.length) {
         state.appendError(
           path,
           genericErrors.notFound({
-            items: values.filter((value) => !allowedLevels.has(value)),
+            items: values.filter((value) => !geographicLevels.has(value)),
           })
         );
 
