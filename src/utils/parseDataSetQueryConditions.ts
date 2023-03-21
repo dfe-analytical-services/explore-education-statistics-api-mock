@@ -13,7 +13,7 @@ import {
   GeographicLevel,
   TimePeriodViewModel,
 } from '../schema';
-import { Filter } from '../types/dbSchemas';
+import { FilterRow } from '../types/dbSchemas';
 import { genericErrors } from '../validations/errors';
 import { criteriaWarnings } from '../validations/warnings';
 import DataSetQueryState from './DataSetQueryState';
@@ -46,7 +46,7 @@ type CriteriaParsers = Required<{
   >;
 }>;
 
-export type FilterItem = Pick<Filter, 'id' | 'label' | 'group_name'>;
+export type FilterItem = Pick<FilterRow, 'id' | 'label' | 'group_name'>;
 
 export default async function parseDataSetQueryConditions(
   state: DataSetQueryState,
@@ -565,7 +565,7 @@ async function getFilterItems(
     return [];
   }
 
-  return await db.all<Filter>(
+  return await db.all<FilterRow>(
     `SELECT id, label, group_name
         FROM '${tableFile('filters')}'
         WHERE id IN (${placeholders(ids)});

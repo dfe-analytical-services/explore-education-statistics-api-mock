@@ -7,7 +7,12 @@ import {
   TimePeriodMetaViewModel,
   Unit,
 } from '../schema';
-import { Filter, Indicator, Location, TimePeriod } from '../types/dbSchemas';
+import {
+  FilterRow,
+  IndicatorRow,
+  LocationRow,
+  TimePeriodRow,
+} from '../types/dbSchemas';
 import Database from './Database';
 import { tableFile } from './dataSetPaths';
 import formatTimePeriodLabel from './formatTimePeriodLabel';
@@ -51,7 +56,7 @@ async function getTimePeriodsMeta(
   db: Database,
   dataSetDir: string
 ): Promise<TimePeriodMetaViewModel[]> {
-  const timePeriods = await db.all<TimePeriod>(
+  const timePeriods = await db.all<TimePeriodRow>(
     `SELECT *
        FROM '${tableFile(dataSetDir, 'time_periods')}';`
   );
@@ -71,7 +76,7 @@ async function getLocationsMeta(
   db: Database,
   dataSetDir: string
 ): Promise<Dictionary<LocationMetaViewModel[]>> {
-  const locations = await db.all<Location>(
+  const locations = await db.all<LocationRow>(
     `SELECT * FROM '${tableFile(dataSetDir, 'locations')}'`
   );
 
@@ -162,7 +167,9 @@ async function getFiltersMeta(
   const filtersMeta: FilterMetaViewModel[] = [];
 
   for (const group of groups) {
-    const items = await db.all<Pick<Filter, 'id' | 'label' | 'is_aggregate'>>(
+    const items = await db.all<
+      Pick<FilterRow, 'id' | 'label' | 'is_aggregate'>
+    >(
       `SELECT id, label, is_aggregate FROM '${filePath}' WHERE group_label = ? ORDER BY label ASC`,
       [group.label]
     );
@@ -190,7 +197,7 @@ async function getIndicatorsMeta(
 ): Promise<IndicatorMetaViewModel[]> {
   const hasher = createIndicatorIdHasher(dataSetDir);
 
-  const indicators = await db.all<Indicator>(
+  const indicators = await db.all<IndicatorRow>(
     `SELECT * FROM '${tableFile(dataSetDir, 'indicators')}' ORDER BY label ASC;`
   );
 

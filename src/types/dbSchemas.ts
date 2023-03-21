@@ -7,17 +7,17 @@ export interface DataRow {
   [column: string]: string | number;
 }
 
-export interface TimePeriod {
+export interface TimePeriodRow {
   year: number;
   identifier: string;
 }
 
-export type Location = {
+export type LocationRow = {
   id: number;
   geographic_level: GeographicLevel;
 } & Dictionary<string>;
 
-export interface Filter {
+export interface FilterRow {
   id: number;
   label: string;
   group_label: string;
@@ -26,7 +26,7 @@ export interface Filter {
   is_aggregate: boolean | null;
 }
 
-export interface Indicator {
+export interface IndicatorRow {
   id: number;
   label: string;
   name: string;

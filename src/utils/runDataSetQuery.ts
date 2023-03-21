@@ -8,7 +8,7 @@ import {
   GeographicLevel,
   PagingViewModel,
 } from '../schema';
-import { DataRow, Indicator } from '../types/dbSchemas';
+import { DataRow, IndicatorRow } from '../types/dbSchemas';
 import { arrayErrors, genericErrors } from '../validations/errors';
 import { tableFile } from './dataSetPaths';
 import { DataSetQueryMeta } from './DataSetQueryMeta';
@@ -415,7 +415,7 @@ async function getFilterColumns({
 async function getIndicators(
   state: DataSetQueryState,
   indicatorIds: string[]
-): Promise<Indicator[]> {
+): Promise<IndicatorRow[]> {
   const { db, indicatorIdHasher, tableFile } = state;
 
   if (!indicatorIds.length) {
@@ -430,7 +430,7 @@ async function getIndicators(
 
   const idPlaceholders = indexPlaceholders(ids);
 
-  const indicators = await db.all<Indicator>(
+  const indicators = await db.all<IndicatorRow>(
     `SELECT *
      FROM '${tableFile('indicators')}'
      WHERE id::VARCHAR IN (${idPlaceholders}) 
