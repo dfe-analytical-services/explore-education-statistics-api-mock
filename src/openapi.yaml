@@ -596,6 +596,7 @@ components:
         - footnotes
         - paging
         - results
+        - warnings
         - _links
       properties:
         footnotes:

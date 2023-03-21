@@ -115,7 +115,7 @@ export async function runDataSetQuery(
         totalPages: pageSize > 0 ? Math.ceil(total / pageSize) : pageSize,
       },
       footnotes: [],
-      warnings: state.hasWarnings() ? state.getWarnings() : undefined,
+      warnings: state.getWarnings(),
       results: results.map((result) => {
         return {
           filters: unquotedFilterCols.reduce<Dictionary<string>>((acc, col) => {
