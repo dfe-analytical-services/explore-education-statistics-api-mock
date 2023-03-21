@@ -11,6 +11,7 @@ import {
 import { DataRow, Indicator } from '../types/dbSchemas';
 import { arrayErrors, genericErrors } from '../validations/errors';
 import { tableFile } from './dataSetPaths';
+import { DataSetQueryMeta } from './DataSetQueryMeta';
 import DataSetQueryState from './DataSetQueryState';
 import getDataSetDir from './getDataSetDir';
 import { createIndicatorIdHasher } from './idHashers';
@@ -40,17 +41,16 @@ export async function runDataSetQuery(
   const state = new DataSetQueryState(dataSetDir);
 
   try {
-    const { results, total, filterCols, indicators, geographicLevels } =
-      await runQuery<DataRowWithLocation>(
-        state,
-        { ...query, page, pageSize },
-        {
-          debug,
-        }
-      );
+    const { results, total, meta } = await runQuery<DataRowWithLocation>(
+      state,
+      { ...query, page, pageSize },
+      {
+        debug,
+      }
+    );
 
-    const unquotedFilterCols = filterCols.map((col) => col.slice(1, -1));
-    const indicatorsById = keyBy(indicators, (indicator) =>
+    const unquotedFilterCols = meta.filterCols.map((col) => col.slice(1, -1));
+    const indicatorsById = keyBy(meta.indicators, (indicator) =>
       indicator.name.toString()
     );
 
@@ -63,7 +63,7 @@ export async function runDataSetQuery(
     }
 
     const orderedGeographicLevels = orderBy(
-      [...geographicLevels],
+      [...meta.geographicLevels],
       (level: GeographicLevel) => baseGeographicLevelOrder.indexOf(level)
     );
 
@@ -181,10 +181,7 @@ interface RunQueryOptions {
 interface RunQueryReturn<TRow extends DataRow = DataRow> {
   results: TRow[];
   total: number;
-  geographicLevels: Set<GeographicLevel>;
-  locationCols: string[];
-  filterCols: string[];
-  indicators: Indicator[];
+  meta: DataSetQueryMeta;
 }
 
 async function runQuery<TRow extends DataRow>(
@@ -216,6 +213,13 @@ async function runQuery<TRow extends DataRow>(
 
     return acc;
   }, new Set<GeographicLevel>());
+
+  const meta: DataSetQueryMeta = {
+    geographicLevels,
+    locationCols,
+    filterCols,
+    indicators,
+  };
 
   const locationsTableCols = locationCols.map((col) => `locations.${col}`);
   const dataTableLocationCols = locationCols.map((col) => `data.${col}`);
@@ -321,10 +325,7 @@ async function runQuery<TRow extends DataRow>(
   return {
     results,
     total,
-    geographicLevels,
-    locationCols,
-    filterCols,
-    indicators,
+    meta,
   };
 }
 
