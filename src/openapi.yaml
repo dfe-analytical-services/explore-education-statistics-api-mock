@@ -455,11 +455,13 @@ components:
         in:
           type: array
           description: Results must have at least one filter matching the given IDs.
+          minItems: 1
           items:
             type: string
         notIn:
           type: array
           description: Results must not have any filters matching the given IDs.
+          minItems: 1
           items:
             type: string
       additionalProperties: false
@@ -481,10 +483,12 @@ components:
           $ref: '#/components/schemas/TimePeriodViewModel'
         in:
           type: array
+          minItems: 1
           items:
             $ref: '#/components/schemas/TimePeriodViewModel'
         notIn:
           type: array
+          minItems: 1
           items:
             $ref: '#/components/schemas/TimePeriodViewModel'
       additionalProperties: false
@@ -498,10 +502,12 @@ components:
           $ref: '#/components/schemas/GeographicLevel'
         in:
           type: array
+          minItems: 1
           items:
             $ref: '#/components/schemas/GeographicLevel'
         notIn:
           type: array
+          minItems: 1
           items:
             $ref: '#/components/schemas/GeographicLevel'
       additionalProperties: false
@@ -528,11 +534,13 @@ components:
         in:
           type: array
           description: Results must have at least one location matching the given IDs.
+          minItems: 1
           items:
             type: string
         notIn:
           type: array
           description: Results must not have any locations matching the given IDs.
+          minItems: 1
           items:
             type: string
       additionalProperties: false

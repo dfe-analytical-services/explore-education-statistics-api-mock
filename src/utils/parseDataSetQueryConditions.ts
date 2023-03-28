@@ -173,7 +173,9 @@ function createParser<
   TCriteria extends ValueOf<DataSetQueryCriteria>,
   TValue extends ValueOf<TCriteria> = ValueOf<TCriteria>,
   TComparator extends keyof TCriteria = keyof TCriteria
->(options: {
+>({
+  parser,
+}: {
   state: DataSetQueryState;
   parser: (
     comparator: TComparator,
@@ -190,12 +192,7 @@ function createParser<
         const comparator = key as TComparator;
 
         const values = Array.isArray(value) ? value : [value];
-
-        if (values.length === 0) {
-          options.state.appendWarning(path, criteriaWarnings.empty);
-        }
-
-        const result = options.parser(comparator, values, {
+        const result = parser(comparator, values, {
           path: `${path}.${key}`,
           criteria,
         });
