@@ -336,6 +336,7 @@ components:
         and:
           type: array
           description: The list of sub-clauses.
+          minItems: 1
           items:
             oneOf:
               - $ref: '#/components/schemas/DataSetQueryCriteria'
@@ -364,6 +365,7 @@ components:
         or:
           type: array
           description: The list of sub-clauses.
+          minItems: 1
           items:
             oneOf:
               - $ref: '#/components/schemas/DataSetQueryCriteria'
