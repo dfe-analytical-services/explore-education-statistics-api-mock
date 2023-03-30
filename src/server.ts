@@ -44,6 +44,7 @@ app.use(
       allowUnknownQueryParameters: true,
     },
     validateResponses: true,
+
     ignorePaths: /\/docs/,
   })
 );
@@ -287,7 +288,7 @@ const errorHandler: ErrorRequestHandler<{}, ApiErrorViewModel> = (
   _
 ) => {
   if (err instanceof BadRequest) {
-    return ValidationError.fromBadRequest(err).toResponse(res);
+    return ValidationError.fromBadRequest(err, req).toResponse(res);
   }
 
   if (err instanceof ApiError) {
