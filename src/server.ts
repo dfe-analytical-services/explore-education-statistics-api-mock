@@ -1,6 +1,6 @@
 import bodyParser from 'body-parser';
 import compression from 'compression';
-import express, { ErrorRequestHandler, Request } from 'express';
+import express, { ErrorRequestHandler } from 'express';
 import 'express-async-errors';
 import * as OpenApiValidator from 'express-openapi-validator';
 import { BadRequest } from 'express-openapi-validator/dist/framework/types';
@@ -11,7 +11,7 @@ import ApiError from './errors/ApiError';
 import NotFoundError from './errors/NotFoundError';
 import { allDataSets } from './mocks/dataSets';
 import { allPublications } from './mocks/publications';
-import { ApiErrorViewModel, LinksViewModel } from './schema';
+import { ApiErrorViewModel } from './schema';
 import createPaginationLinks from './utils/createPaginationLinks';
 import createSelfLink from './utils/createSelfLink';
 import { dataSetDirs } from './utils/getDataSetDir';
@@ -21,7 +21,7 @@ import {
 } from './utils/getDataSetFile';
 import getDataSetMeta from './utils/getDataSetMeta';
 import parsePaginationParams from './utils/parsePaginationParams';
-import { getHostUrl } from './utils/requestUtils';
+import { addHostUrlToLinks } from './utils/responseUtils';
 import { runDataSetQuery, runDataSetQueryToCsv } from './utils/runDataSetQuery';
 
 const apiSpec = path.resolve(__dirname, './openapi.yaml');
@@ -318,17 +318,3 @@ const port = process.env.PORT || 8080;
 app.listen(port, () => console.log(`Server is running on port ${port}`));
 
 export default app;
-
-function addHostUrlToLinks(
-  links: LinksViewModel,
-  req: Request
-): LinksViewModel {
-  const hostUrl = getHostUrl(req);
-
-  return mapValues(links, (link) => {
-    return {
-      ...link,
-      href: `${hostUrl}${link.href}`,
-    };
-  });
-}
