@@ -295,6 +295,18 @@ const errorHandler: ErrorRequestHandler<{}, ApiErrorViewModel> = (
     return err.toResponse(res);
   }
 
+  if (
+    err instanceof SyntaxError &&
+    'statusCode' in err &&
+    err.statusCode === 400
+  ) {
+    return new ApiError({
+      title: 'Malformed request could not be parsed due to syntax errors.',
+      status: 400,
+      type: 'Bad Request',
+    }).toResponse(res);
+  }
+
   console.error(err);
 
   return new InternalServerError().toResponse(res);
