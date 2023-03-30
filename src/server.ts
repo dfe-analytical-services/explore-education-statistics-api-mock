@@ -8,6 +8,7 @@ import { mapValues } from 'lodash';
 import path from 'path';
 import { InternalServerError, ValidationError } from './errors';
 import ApiError from './errors/ApiError';
+import NotFoundError from './errors/NotFoundError';
 import { allDataSets } from './mocks/dataSets';
 import { allPublications } from './mocks/publications';
 import { ApiErrorViewModel, LinksViewModel } from './schema';
@@ -96,7 +97,7 @@ app.get('/api/v1/publications/:publicationId', (req, res) => {
   );
 
   if (!publication) {
-    return res.status(404).json(notFoundError());
+    throw new NotFoundError();
   }
 
   res.status(200).json({
@@ -111,7 +112,7 @@ app.get('/api/v1/publications/:publicationId/data-sets', (req, res) => {
   );
 
   if (!publication) {
-    return res.status(404).json(notFoundError());
+    throw new NotFoundError();
   }
 
   const dataSets = allDataSets.filter(
@@ -134,7 +135,7 @@ app.get('/api/v1/data-sets/:dataSetId', async (req, res) => {
   );
 
   if (!matchingDataSet) {
-    return res.status(404).json(notFoundError());
+    throw new NotFoundError();
   }
 
   const { viewModel } = matchingDataSet;
@@ -171,21 +172,19 @@ app.get('/api/v1/data-sets/:dataSetId/meta', async (req, res) => {
     });
   }
 
-  res.status(404).json(notFoundError());
+  throw new NotFoundError();
 });
 
 app.post('/api/v1/data-sets/:dataSetId/query', async (req, res) => {
   const { dataSetId } = req.params;
 
-  const acceptsCsv = req.accepts('application/json', 'text/csv') === 'text/csv';
-
   if (!dataSetDirs[dataSetId]) {
-    return acceptsCsv
-      ? res.status(404).send('')
-      : res.status(404).json(notFoundError());
+    throw new NotFoundError();
   }
 
   const { page = 1, pageSize = 500 } = parsePaginationParams(req);
+
+  const acceptsCsv = req.accepts('application/json', 'text/csv') === 'text/csv';
 
   if (acceptsCsv) {
     const {
@@ -248,7 +247,7 @@ app.get('/api/v1/data-sets/:dataSetId/file', async (req, res) => {
   const { dataSetId } = req.params;
 
   if (!dataSetDirs[dataSetId]) {
-    return res.status(404).send('');
+    throw new NotFoundError();
   }
 
   const fileName = `dataset_${dataSetId}`;
@@ -319,14 +318,6 @@ const port = process.env.PORT || 8080;
 app.listen(port, () => console.log(`Server is running on port ${port}`));
 
 export default app;
-
-function notFoundError(): ApiErrorViewModel {
-  return {
-    status: 404,
-    type: 'https://datatracker.ietf.org/doc/html/rfc7231#section-6.5.4',
-    title: 'Not Found',
-  };
-}
 
 function addHostUrlToLinks(
   links: LinksViewModel,
