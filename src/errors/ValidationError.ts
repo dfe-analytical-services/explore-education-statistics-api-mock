@@ -60,8 +60,6 @@ function normalizeOpenApiValidationErrors(
     isEqual
   );
 
-  console.log(uniqueErrors);
-
   const unsortedErrors = uniqueErrors.reduce<ErrorDictionary>((acc, error) => {
     const pathParts = error.path
       .replace(/\/(body|query|params)\//, '')
@@ -104,7 +102,9 @@ function createErrorViewModel(
   error: OpenApiValidationError,
   allErrors: OpenApiValidationError[]
 ): ErrorViewModel | undefined {
-  const code = error.errorCode.replace('.openapi.validation', '');
+  const code =
+    error.errorCode?.replace('.openapi.validation', '') ??
+    parseFallbackCode(error);
 
   switch (code) {
     case 'additionalProperties': {
@@ -156,4 +156,12 @@ function hasChildPathError(
   return allErrors.some(
     (err) => err.path !== error.path && err.path.startsWith(error.path)
   );
+}
+
+function parseFallbackCode(error: OpenApiValidationError): string {
+  if (error.message.startsWith('Unknown query parameter')) {
+    return 'unknown';
+  }
+
+  return '';
 }
