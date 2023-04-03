@@ -9,6 +9,7 @@ import path from 'path';
 import { InternalServerError, ValidationError } from './errors';
 import ApiError from './errors/ApiError';
 import NotFoundError from './errors/NotFoundError';
+import queryParser from './middlewares/queryParser';
 import { allDataSets } from './mocks/dataSets';
 import { allPublications } from './mocks/publications';
 import { ApiErrorViewModel } from './schema';
@@ -29,6 +30,7 @@ const apiSpec = path.resolve(__dirname, './openapi.yaml');
 const app = express();
 
 app.set('trust proxy', 2);
+app.set('query parser', false);
 
 // Middleware
 
@@ -36,6 +38,7 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.text());
 app.use(bodyParser.json());
 app.use(compression());
+app.use(queryParser());
 app.use(
   OpenApiValidator.middleware({
     apiSpec,
