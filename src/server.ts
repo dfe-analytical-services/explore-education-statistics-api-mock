@@ -4,15 +4,16 @@ import express, { ErrorRequestHandler } from 'express';
 import 'express-async-errors';
 import * as OpenApiValidator from 'express-openapi-validator';
 import { BadRequest } from 'express-openapi-validator/dist/framework/types';
-import { mapValues } from 'lodash';
+import { mapValues, omit, pick } from 'lodash';
 import path from 'path';
 import { InternalServerError, ValidationError } from './errors';
 import ApiError from './errors/ApiError';
 import NotFoundError from './errors/NotFoundError';
+import { queryDataSet } from './handlers/queryDataSet';
 import queryParser from './middlewares/queryParser';
 import { allDataSets } from './mocks/dataSets';
 import { allPublications } from './mocks/publications';
-import { ApiErrorViewModel } from './schema';
+import { ApiErrorViewModel, DataSetQuery } from './schema';
 import createPaginationLinks from './utils/createPaginationLinks';
 import createSelfLink from './utils/createSelfLink';
 import { dataSetDirs } from './utils/getDataSetDir';
@@ -23,7 +24,6 @@ import {
 import getDataSetMeta from './utils/getDataSetMeta';
 import parsePaginationParams from './utils/parsePaginationParams';
 import { addHostUrlToLinks } from './utils/responseUtils';
-import { runDataSetQuery, runDataSetQueryToCsv } from './utils/runDataSetQuery';
 
 const apiSpec = path.resolve(__dirname, './openapi.yaml');
 
@@ -44,11 +44,7 @@ app.use(
     apiSpec,
     validateApiSpec: true,
     validateFormats: false,
-    validateRequests: {
-      allowUnknownQueryParameters: true,
-    },
     validateResponses: true,
-
     ignorePaths: /\/docs/,
   })
 );
@@ -178,72 +174,25 @@ app.get('/api/v1/data-sets/:dataSetId/meta', async (req, res) => {
   throw new NotFoundError();
 });
 
-app.post('/api/v1/data-sets/:dataSetId/query', async (req, res) => {
-  const { dataSetId } = req.params;
+app.get('/api/v1/data-sets/:dataSetId/query', (req, res) => {
+  const { indicators, sort } = req.query as any;
 
-  if (!dataSetDirs[dataSetId]) {
-    throw new NotFoundError();
-  }
+  const query: DataSetQuery = {
+    facets: pick(req.query as any, [
+      'filters',
+      'geographicLevels',
+      'locations',
+      'timePeriods',
+    ]),
+    indicators,
+    sort,
+  };
 
-  const { page = 1, pageSize = 500 } = parsePaginationParams(req);
+  return queryDataSet(query, req, res);
+});
 
-  const acceptsCsv = req.accepts('application/json', 'text/csv') === 'text/csv';
-
-  if (acceptsCsv) {
-    const {
-      csv,
-      paging: { totalPages, totalResults },
-    } = await runDataSetQueryToCsv(dataSetId, req.body, {
-      page,
-      pageSize,
-    });
-
-    const links = mapValues(
-      createPaginationLinks(req, {
-        page,
-        totalPages,
-      }),
-      (link) => link.href
-    );
-
-    return res
-      .status(200)
-      .contentType('text/csv')
-      .setHeader('Page', page)
-      .setHeader('Page-Size', pageSize)
-      .setHeader('Total-Results', totalResults)
-      .setHeader('Total-Pages', totalPages)
-      .links(links)
-      .send(csv);
-  }
-
-  const response = await runDataSetQuery(dataSetId, req.body, {
-    page,
-    pageSize,
-    debug: typeof req.query.debug !== 'undefined',
-  });
-
-  return res.status(200).send({
-    _links: {
-      self: createSelfLink(req),
-      ...createPaginationLinks(req, {
-        page,
-        totalPages: response.paging.totalPages,
-      }),
-      ...addHostUrlToLinks(
-        {
-          file: {
-            href: `/api/v1/data-sets/${dataSetId}/file`,
-          },
-          meta: {
-            href: `/api/v1/data-sets/${dataSetId}/meta`,
-          },
-        },
-        req
-      ),
-    },
-    ...response,
-  });
+app.post('/api/v1/data-sets/:dataSetId/query', (req, res) => {
+  return queryDataSet(req.body, req, res);
 });
 
 app.get('/api/v1/data-sets/:dataSetId/file', async (req, res) => {

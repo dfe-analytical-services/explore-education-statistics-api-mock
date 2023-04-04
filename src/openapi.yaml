@@ -128,10 +128,140 @@ paths:
               schema:
                 $ref: '#/components/schemas/DataSetViewModel'
   /api/v1/data-sets/{dataSetId}/query:
+    get:
+      operationId: QueryDataSetGet
+      summary: Query a data set (GET)
+      description: | 
+        Query a data set using a `GET` request, returning the filtered results.
+        
+        Note that there is a `POST` variant of this endpoint which provides a more complete set
+        of querying functionality. The `GET` variant is only recommended for initial exploratory 
+        testing or simple queries that do not need advanced functionality.
+        
+        Unlike the `POST` variant, this endpoint does not allow condition clauses (`and`, `or`, `not`)
+        and consequently cannot express more complex queries.
+      tags:
+        - Data Set
+      parameters:
+        - name: dataSetId
+          in: path
+          description: The ID of the data set.
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: filters
+          in: query
+          description:  The filters to match results by.
+          explode: false
+          allowReserved: true
+          schema:
+            $ref: '#/components/schemas/DataSetQueryCriteriaFilters'
+        - name: geographicLevels
+          in: query
+          description:  The geographic levels to match results by.
+          explode: false
+          allowReserved: true
+          schema:
+            $ref: '#/components/schemas/DataSetQueryCriteriaGeographicLevels'
+        - name: locations
+          in: query
+          description:  The locations to match results by.
+          explode: false
+          allowReserved: true
+          schema:
+            $ref: '#/components/schemas/DataSetQueryCriteriaLocations'
+        - name: timePeriods
+          in: query
+          description:  The time periods to match results by.
+          explode: false
+          allowReserved: true
+          schema:
+            $ref: '#/components/schemas/DataSetQueryCriteriaTimePeriods'
+        - name: indicators
+          in: query
+          description: The IDs or names of indicators to get values for.
+          required: true
+          explode: false
+          allowReserved: true
+          schema:
+            type: array
+            items:
+              type: string
+        - name: sort
+          in: query
+          description: |
+            List of sorts to apply to results. Sorts at the start of the list will be applied first.
+            By default, results are sorted by time period in descending order.
+          explode: false
+          allowReserved: true
+          schema:
+            type: array
+            minItems: 1
+            items:
+              $ref: '#/components/schemas/DataSetQuerySort'
+        - name: debug
+          in: query
+          description: |
+            Enable debug mode. Results will be formatted with human-readable labels to assist identification.
+          required: false
+          schema:
+            type: boolean
+            default: false
+        - name: page
+          in: query
+          description: The page of results to fetch.
+          required: false
+          schema:
+            type: number
+            format: int32
+            minimum: 1
+        - name: pageSize
+          in: query
+          description: The maximum number of results per page.
+          required: false
+          schema:
+            type: number
+            format: int32
+            minimum: 0
+            maximum: 10000
+            default: 1000
+        - name: Accept
+          in: header
+          description: |
+            The media type to format the response data in (defaults to `application/json`). Allowed options:
+
+            - `application/json`
+            - `text/csv`
+          schema:
+            type: string
+            default: application/json
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataSetResultsViewModel'
+            text/csv:
+              schema:
+                type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
     post:
-      operationId: QueryDataSet
-      summary: Query a data set
-      description: Query a data set, returning the filtered results.
+      operationId: QueryDataSetPost
+      summary: Query a data set (POST)
+      description: | 
+        Query a data set using a `POST` request, returning the filtered results.
+        
+        Note that for simpler queries or exploratory testing, there is also `GET` variant of this 
+        endpoint which only handles a smaller subset of querying functionality. However, for most 
+        use-cases, this endpoint is recommended as it provides the complete set of functionality.
+        
+        Unlike the `GET` variant, this endpoint allows condition clauses (`and`, `or`, `not`)
+        and consequently can express more complex queries.
       tags:
         - Data Set
       parameters:
