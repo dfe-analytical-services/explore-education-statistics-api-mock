@@ -77,20 +77,6 @@ export const apprenticeshipsProvidersDetailedDataSet = createDataSet({
   },
 });
 
-export const apprenticeshipsSubjectLevelsHeadlineDataSet = createDataSet({
-  id: '17f1f8e9-6167-417f-93f3-0882ef37377f',
-  title: 'Subjects and levels - latest headline summary',
-  description:
-    'Headline summary of apprenticeship starts and achievements by sector subject area',
-  geographicLevels: ['National'],
-  lastPublished: '2022-12-01T09:30:00Z',
-  publication: apprenticeshipsPublication,
-  timePeriods: {
-    start: '2018/19',
-    end: '2021/22',
-  },
-});
-
 export const benchmarkETDetailedReorderedDataSet = createDataSet({
   id: '91f449b6-0850-45ff-8e09-23d5fdc87fb5',
   title: 'ET Detailed Reordered',
@@ -149,7 +135,6 @@ export const allDataSets: DataSet[] = [
   pupilAttendanceWeeklyDataSet,
   leoIndustryRegionalDataSet,
   apprenticeshipsProvidersDetailedDataSet,
-  apprenticeshipsSubjectLevelsHeadlineDataSet,
   benchmarkETDetailedReorderedDataSet,
   benchmarkLtdDmDataSet,
   benchmarkNatDataSet,

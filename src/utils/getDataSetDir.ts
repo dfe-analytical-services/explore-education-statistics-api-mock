@@ -1,7 +1,6 @@
 import path from 'path';
 import {
   apprenticeshipsProvidersDetailedDataSet,
-  apprenticeshipsSubjectLevelsHeadlineDataSet,
   benchmarkETDetailedReorderedDataSet,
   benchmarkLtdDmDataSet,
   benchmarkNatDataSet,
@@ -20,8 +19,6 @@ export const dataSetDirs = {
   [pupilAttendanceWeeklyDataSet.id]: 'ees_weekly_data',
   [leoIndustryRegionalDataSet.id]: 'regional_map_data_ees',
   [apprenticeshipsProvidersDetailedDataSet.id]: 'app-provider-starts-202122-q4',
-  [apprenticeshipsSubjectLevelsHeadlineDataSet.id]:
-    'app-subject-summary-202122-q4',
   [benchmarkETDetailedReorderedDataSet.id]:
     'e-and-t-geography-detailed_6years_reordered',
   [benchmarkQuaDataSet.id]: 'qua01',
