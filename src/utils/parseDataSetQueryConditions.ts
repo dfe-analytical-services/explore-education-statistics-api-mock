@@ -237,7 +237,7 @@ async function createFiltersParser(
       );
 
       if (matchingItems.length < values.length) {
-        state.appendError(
+        state.appendWarning(
           path,
           genericErrors.notFound({
             items: values.filter((value) => !filterItemIdsByRawId[value]),
@@ -332,7 +332,7 @@ async function createLocationsParser(
       });
 
       if (matchingValues.length < values.length) {
-        state.appendError(
+        state.appendWarning(
           path,
           genericErrors.notFound({
             items: values.filter((value) => !matchingValues.includes(value)),
@@ -516,7 +516,7 @@ function createGeographicLevelsParser(
         .map((value) => geographicLevelCsvLabels[value]);
 
       if (!params.length) {
-        state.appendError(
+        state.appendWarning(
           path,
           genericErrors.notFound({
             items: values.filter((value) => !geographicLevels.has(value)),

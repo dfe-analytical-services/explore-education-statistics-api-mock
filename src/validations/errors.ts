@@ -16,7 +16,7 @@ export const arrayErrors = {
 export const genericErrors = {
   notFound({ items }: { items: unknown[] }) {
     return {
-      message: `Could not find ${items.length === 1 ? 'item' : 'items'}.`,
+      message: 'Could not find item(s).',
       code: 'notFound',
       details: {
         items,
