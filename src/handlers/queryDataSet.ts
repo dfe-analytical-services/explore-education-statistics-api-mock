@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { mapValues } from 'lodash';
 import NotFoundError from '../errors/NotFoundError';
+import { allDataSetVersions } from '../mocks/dataSetVersions';
 import { DataSetQuery } from '../schema';
 import createPaginationLinks from '../utils/createPaginationLinks';
 import createSelfLink from '../utils/createSelfLink';
@@ -18,8 +19,18 @@ export async function queryDataSet(
   res: Response
 ) {
   const { dataSetId } = req.params;
+  const { dataSetVersion } = req.query;
 
   if (!dataSetDirs[dataSetId]) {
+    throw new NotFoundError();
+  }
+
+  if (
+    dataSetVersion &&
+    !allDataSetVersions[dataSetId].some(
+      (version) => version.number === dataSetVersion
+    )
+  ) {
     throw new NotFoundError();
   }
 

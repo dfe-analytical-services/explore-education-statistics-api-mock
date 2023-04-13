@@ -4,7 +4,7 @@ import express, { ErrorRequestHandler } from 'express';
 import 'express-async-errors';
 import * as OpenApiValidator from 'express-openapi-validator';
 import { BadRequest } from 'express-openapi-validator/dist/framework/types';
-import { mapValues, omit, pick } from 'lodash';
+import { omit, pick } from 'lodash';
 import path from 'path';
 import { InternalServerError, ValidationError } from './errors';
 import ApiError from './errors/ApiError';
@@ -12,8 +12,14 @@ import NotFoundError from './errors/NotFoundError';
 import { queryDataSet } from './handlers/queryDataSet';
 import queryParser from './middlewares/queryParser';
 import { allDataSets } from './mocks/dataSets';
+import { allDataSetVersions } from './mocks/dataSetVersions';
 import { allPublications } from './mocks/publications';
-import { ApiErrorViewModel, DataSetQuery } from './schema';
+import {
+  ApiErrorViewModel,
+  DataSetQuery,
+  DataSetVersionViewModel,
+  PagedDataSetVersionsViewModel,
+} from './schema';
 import createPaginationLinks from './utils/createPaginationLinks';
 import createSelfLink from './utils/createSelfLink';
 import { dataSetDirs } from './utils/getDataSetDir';
@@ -127,13 +133,23 @@ app.get('/api/v1/publications/:publicationId/data-sets', (req, res) => {
 });
 
 app.get('/api/v1/data-sets/:dataSetId', async (req, res) => {
-  const dataSetId = req.params.dataSetId;
+  const { dataSetId } = req.params;
+  const { dataSetVersion } = req.query;
 
   const matchingDataSet = allDataSets.find(
     (dataSet) => dataSet.id === dataSetId
   );
 
   if (!matchingDataSet) {
+    throw new NotFoundError();
+  }
+
+  if (
+    dataSetVersion &&
+    !allDataSetVersions[dataSetId].some(
+      (version) => version.number === dataSetVersion
+    )
+  ) {
     throw new NotFoundError();
   }
 
@@ -146,32 +162,42 @@ app.get('/api/v1/data-sets/:dataSetId', async (req, res) => {
 });
 
 app.get('/api/v1/data-sets/:dataSetId/meta', async (req, res) => {
-  const dataSetId = req.params.dataSetId;
+  const { dataSetId } = req.params;
+  const { dataSetVersion } = req.query;
 
-  if (dataSetDirs[dataSetId]) {
-    const meta = await getDataSetMeta(dataSetId);
-
-    return res.status(200).json({
-      _links: {
-        self: createSelfLink(req),
-        ...addHostUrlToLinks(
-          {
-            query: {
-              href: `/api/v1/data-sets/${dataSetId}/query`,
-              method: 'POST',
-            },
-            file: {
-              href: `/api/v1/data-sets/${dataSetId}/file`,
-            },
-          },
-          req
-        ),
-      },
-      ...meta,
-    });
+  if (!dataSetDirs[dataSetId]) {
+    throw new NotFoundError();
   }
 
-  throw new NotFoundError();
+  if (
+    dataSetVersion &&
+    !allDataSetVersions[dataSetId].some(
+      (version) => version.number === dataSetVersion
+    )
+  ) {
+    throw new NotFoundError();
+  }
+
+  const meta = await getDataSetMeta(dataSetId);
+
+  return res.status(200).json({
+    _links: {
+      self: createSelfLink(req),
+      ...addHostUrlToLinks(
+        {
+          query: {
+            href: `/api/v1/data-sets/${dataSetId}/query`,
+            method: 'POST',
+          },
+          file: {
+            href: `/api/v1/data-sets/${dataSetId}/file`,
+          },
+        },
+        req
+      ),
+    },
+    ...meta,
+  });
 });
 
 app.get('/api/v1/data-sets/:dataSetId/query', (req, res) => {
@@ -197,8 +223,18 @@ app.post('/api/v1/data-sets/:dataSetId/query', (req, res) => {
 
 app.get('/api/v1/data-sets/:dataSetId/file', async (req, res) => {
   const { dataSetId } = req.params;
+  const { dataSetVersion } = req.query;
 
   if (!dataSetDirs[dataSetId]) {
+    throw new NotFoundError();
+  }
+
+  if (
+    dataSetVersion &&
+    !allDataSetVersions[dataSetId].some(
+      (version) => version.number === dataSetVersion
+    )
+  ) {
     throw new NotFoundError();
   }
 
@@ -229,6 +265,76 @@ app.get('/api/v1/data-sets/:dataSetId/file', async (req, res) => {
 
   return stream.pipe(res);
 });
+
+app.get('/api/v1/data-sets/:dataSetId/versions', async (req, res) => {
+  const { dataSetId } = req.params;
+
+  if (!dataSetDirs[dataSetId]) {
+    throw new NotFoundError();
+  }
+
+  if (!allDataSetVersions[dataSetId]) {
+    throw new NotFoundError();
+  }
+
+  const matchingVersions: DataSetVersionViewModel[] = allDataSetVersions[
+    dataSetId
+  ].map((version) => {
+    return {
+      _links: addHostUrlToLinks(version._links, req),
+      ...omit(version, ['changes', '_links']),
+    };
+  });
+
+  const { page = 1, pageSize = 20 } = parsePaginationParams(req);
+
+  let response: PagedDataSetVersionsViewModel;
+
+  const start = (page - 1) * pageSize;
+  const totalPages =
+    pageSize > 0 ? Math.ceil(matchingVersions.length / pageSize) : 0;
+
+  response = {
+    _links: {
+      self: createSelfLink(req),
+      ...createPaginationLinks(req, { page, totalPages }),
+    },
+    paging: {
+      page,
+      pageSize,
+      totalPages,
+      totalResults: matchingVersions.length,
+    },
+    results: matchingVersions.slice(start, start + pageSize),
+  };
+
+  return res.status(200).json(response);
+});
+
+app.get(
+  '/api/v1/data-sets/:dataSetId/versions/:dataSetVersion',
+  async (req, res) => {
+    const { dataSetId, dataSetVersion } = req.params;
+
+    if (!dataSetDirs[dataSetId]) {
+      throw new NotFoundError();
+    }
+
+    if (!allDataSetVersions[dataSetId]) {
+      throw new NotFoundError();
+    }
+
+    const matchingVersion = allDataSetVersions[dataSetId].find(
+      (version) => version.number === dataSetVersion
+    );
+
+    if (!matchingVersion) {
+      throw new NotFoundError();
+    }
+
+    return res.status(200).json(matchingVersion);
+  }
+);
 
 // Error handling
 

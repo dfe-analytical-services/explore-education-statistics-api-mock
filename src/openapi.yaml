@@ -120,6 +120,11 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: dataSetVersion
+          in: query
+          description: The version of the data set to use e.g. 2.0, 1.1, etc.
+          schema:
+            type: string
       responses:
         '200':
           description: Success
@@ -127,6 +132,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DataSetViewModel'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /api/v1/data-sets/{dataSetId}/query:
     get:
       operationId: QueryDataSetGet
@@ -150,6 +159,11 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: dataSetVersion
+          in: query
+          description: The version of the data set to use e.g. 2.0, 1.1, etc.
+          schema:
+            type: string
         - name: filters
           in: query
           description:  The filters to match results by.
@@ -272,6 +286,11 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: dataSetVersion
+          in: query
+          description: The version of the data set to use e.g. 2.0, 1.1, etc.
+          schema:
+            type: string
         - name: debug
           in: query
           description: | 
@@ -343,6 +362,11 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: dataSetVersion
+          in: query
+          description: The version of the data set to use e.g. 2.0, 1.1, etc.
+          schema:
+            type: string
         - name: Accept
           in: header
           description: | 
@@ -365,7 +389,7 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '404':
           $ref: '#/components/responses/NotFound'
-  '/api/v1/data-sets/{dataSetId}/meta':
+  /api/v1/data-sets/{dataSetId}/meta:
     get:
       operationId: GetDataSetMeta
       summary: Get a data set's metadata
@@ -380,6 +404,11 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: dataSetVersion
+          in: query
+          description: The version of the data set to use e.g. 2.0, 1.1, etc.
+          schema:
+            type: string
         - name: showFilterIds
           in: query
           description: Include filter IDs in the response (defaults to false).
@@ -394,6 +423,82 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DataSetMetaViewModel'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/data-sets/{dataSetId}/versions:
+    get:
+      operationId: ListDataSetVersions
+      summary: List a data set's versions
+      description: List a data set's versions. Only provides summary information of each version.
+      tags:
+        - Data Set
+      parameters:
+        - name: dataSetId
+          in: path
+          description: The ID of the data set.
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: page
+          in: query
+          description: The page of results to fetch.
+          required: false
+          schema:
+            type: number
+            format: int32
+            minimum: 1
+        - name: pageSize
+          in: query
+          description: The maximum number of results per page.
+          required: false
+          schema:
+            type: number
+            format: int32
+            minimum: 0
+            maximum: 20
+            default: 10
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedDataSetVersionsViewModel'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/data-sets/{dataSetId}/versions/{dataSetVersion}:
+    get:
+      operationId: GetDataSetVersion
+      summary: Get a data set version
+      description: Get a data set version, including a full list of its changes.
+      tags:
+        - Data Set
+      parameters:
+        - name: dataSetId
+          in: path
+          description: The ID of the data set.
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: dataSetVersion
+          in: path
+          description: The data set version number e.g. 2.0, 1.1, etc.
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataSetVersionViewModel'
         '400':
           $ref: '#/components/responses/BadRequest'
         '404':
@@ -708,6 +813,8 @@ components:
         - id
         - title
         - description
+        - status
+        - version
         - timePeriods
         - geographicLevels
         - lastPublished
@@ -723,6 +830,22 @@ components:
         description:
           type: string
           description: A description of the data set's contents.
+        status:
+          type: string
+          description: |-
+            The status of the data set. Can be one of the following:
+            
+            - `Active` - the data set is actively maintained and updates will be published to it
+            - `Deprecated` - the data set is discontinued and updates will no longer be published to it
+          enum:
+            - Active
+            - Deprecated
+        version:
+          type: string
+          description: The current version number of the data set e.g. 2.0, 1.1, etc.
+        supersedingDataSetId:
+          type: string
+          description: The ID of the data set that supersedes this data set (if it has been deprecated).
         timePeriods:
           $ref: '#/components/schemas/TimePeriodLabels'
         geographicLevels:
@@ -838,6 +961,212 @@ components:
           items:
             $ref: '#/components/schemas/TimePeriodMetaViewModel'
       additionalProperties: false
+    DataSetVersionViewModel:
+      type: object
+      description: Describes a version of a data set.
+      required:
+        - number
+        - type
+        - notes
+        - published
+        - _links
+      additionalProperties: false
+      properties:
+        number:
+          type: string
+          description: The version number. Follows semantic versioning e.g. 2.0 (major), 1.1 (minor).
+        type:
+          type: string
+          description: |-
+            The version type. Can be one of the following:
+            
+            - `Major` - backwards **incompatible** changes are being introduced
+            - `Minor` - backwards compatible changes are being introduced
+            - `Deprecating` - the data set is being deprecated and should no longer be used
+            
+            Major versions typically indicate that some action may be required to ensure code 
+            that consumes the data set continues to work.
+            
+            Minor versions should not cause issues in the functionality of existing code.
+            
+            Deprecating versions may indicate the superseding data set (if applicable) to use. In 
+            these cases, it is advisable to try and migrate any existing code to the new data set as 
+            soon as possible. It is not recommended that you use deprecated data sets for longer 
+            than is necessary.
+          enum:
+            - Major
+            - Minor
+            - Deprecating
+        notes:
+          type: string
+          description: Any notes about this version and its changes.
+        supersedingDataSetId:
+          type: string
+          description: The ID of the data set that supersedes this data set (if it has been deprecated).
+        published:
+          type: string
+          description: When the version was published.
+          format: datetime
+        changes:
+          type: array
+          description: A list of changes relating to this version.
+          items:
+            $ref: '#/components/schemas/DataSetVersionChangeViewModel'
+        _links:
+          $ref: '#/components/schemas/LinksViewModel'
+    DataSetVersionChangeViewModel:
+      type: object
+      description: A specific change made as part of the data set version.
+      additionalProperties: false
+      required:
+        - id
+        - type
+        - targetType
+      properties:
+        id:
+          type: string
+          description: The ID of the change.
+          format: uuid
+        type:
+          type: string
+          description: |-
+            The type of change that was made. This can be:
+            
+            - `Add` - the addition of something e.g. a new facet
+            - `Update` - an update to something e.g. a facet's label or other attribute
+            - `Delete` - the removal of something e.g. a facet
+          enum:
+            - Add
+            - Update
+            - Delete
+        targetType:
+          type: string
+          description: The target type of the change.
+          enum:
+            - Filter
+            - FilterItem
+            - Indicator
+            - Location
+            - TimePeriod
+        current:
+          type: object
+          description: The current state of the change target.
+          oneOf:
+            - $ref: '#/components/schemas/DataSetVersionChangeFilterViewModel'
+            - $ref: '#/components/schemas/DataSetVersionChangeFilterItemViewModel'
+            - $ref: '#/components/schemas/DataSetVersionChangeIndicatorViewModel'
+            - $ref: '#/components/schemas/DataSetVersionChangeLocationViewModel'
+            - $ref: '#/components/schemas/DataSetVersionChangeTimePeriodViewModel'
+        previous:
+          type: object
+          description: | 
+            The previous state of the change target (if applicable). Only fields that were 
+            changed are included.
+          additionalProperties: true
+    DataSetVersionChangeFilterViewModel:
+      type: object
+      description: A change to a filter.
+      additionalProperties: false
+      required:
+        - label
+        - name
+      properties:
+        label:
+          type: string
+          description: The human-readable label of the filter.
+        name:
+          type: string
+          description: The name of the filter as it appears in the underlying data file.
+    DataSetVersionChangeFilterItemViewModel:
+      type: object
+      description: A change to a filter item.
+      additionalProperties: false
+      required:
+        - id
+        - label
+        - filterName
+      properties:
+        id:
+          type: string
+          description: The ID of the filter item.
+        label:
+          type: string
+          description: The human-readable label describing the filter item.
+        isAggregate:
+          type: boolean
+          description: Whether the filter item is an aggregate (i.e. 'all' or a 'total') of the other filter items.
+        filterName:
+          type: string
+          description: The name of the filter the filter item belongs to.
+    DataSetVersionChangeIndicatorViewModel:
+      type: object
+      description: A change to an indicator.
+      additionalProperties: false
+      required:
+        - id
+        - label
+        - name
+        - unit
+      properties:
+        id:
+          type: string
+          description: The ID of the indicator.
+        label:
+          type: string
+          description: The human-readable label of the indicator.
+        name:
+          type: string
+          description: The name of the indicator as it appears in the underlying data file.
+        unit:
+          $ref: '#/components/schemas/Unit'
+        decimalPlaces:
+          type: integer
+          format: int32
+          description: The optimal number of decimal places that the indicator should use when displayed.
+    DataSetVersionChangeLocationViewModel:
+      type: object
+      description: A change to a location.
+      additionalProperties: false
+      required:
+        - id
+        - name
+        - code
+        - level
+      properties:
+        id:
+          type: string
+          description: The ID of the location.
+        name:
+          type: string
+          description: The name of the location.
+        code:
+          type: string
+          description: The geographic code of the location.
+        level:
+          $ref: '#/components/schemas/GeographicLevel'
+        attributes:
+          type: object
+          description: Other geographic attributes of the location e.g. its country, region, etc.
+          additionalProperties:
+            $ref: '#/components/schemas/LocationAttributeViewModel'
+    DataSetVersionChangeTimePeriodViewModel:
+      type: object
+      description: A change to a location.
+      additionalProperties: false
+      required:
+        - code
+        - year
+        - label
+      properties:
+        code:
+          $ref: '#/components/schemas/TimePeriodCode'
+        year:
+          type: integer
+          format: int32
+          description: The year that the time period relates to.
+        label:
+          type: string
+          description: The time period in human-readable format.
     ErrorDictionary:
       type: object
       description: |
@@ -1032,8 +1361,8 @@ components:
           type: object
           description: Other geographic attributes of this location e.g. its country, region, etc.
           additionalProperties:
-            $ref: '#/components/schemas/LocationMetaAttributeViewModel'
-    LocationMetaAttributeViewModel:
+            $ref: '#/components/schemas/LocationAttributeViewModel'
+    LocationAttributeViewModel:
       type: object
       description: A geographic attribute of a location e.g. its country, region, etc.
       properties:
@@ -1043,6 +1372,22 @@ components:
         code:
           type: string
           description: The geographic code of this location attribute.
+    PagedDataSetVersionsViewModel:
+      type: object
+      additionalProperties: false
+      required:
+        - paging
+        - results
+        - _links
+      properties:
+        paging:
+          $ref: '#/components/schemas/PagingViewModel'
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/DataSetVersionViewModel'
+        _links:
+          $ref: '#/components/schemas/LinksViewModel'
     PagedPublicationSummaryViewModel:
       type: object
       additionalProperties: false
