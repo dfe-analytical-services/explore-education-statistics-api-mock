@@ -140,7 +140,7 @@ paths:
     get:
       operationId: QueryDataSetGet
       summary: Query a data set (GET)
-      description: | 
+      description: |-
         Query a data set using a `GET` request, returning the filtered results.
         
         Note that there is a `POST` variant of this endpoint which provides a more complete set
@@ -204,7 +204,7 @@ paths:
               type: string
         - name: sort
           in: query
-          description: |
+          description: |-
             List of sorts to apply to results. Sorts at the start of the list will be applied first.
             By default, results are sorted by time period in descending order.
           explode: false
@@ -216,7 +216,7 @@ paths:
               $ref: '#/components/schemas/DataSetQuerySort'
         - name: debug
           in: query
-          description: |
+          description: |-
             Enable debug mode. Results will be formatted with human-readable labels to assist identification.
           required: false
           schema:
@@ -242,7 +242,7 @@ paths:
             default: 1000
         - name: Accept
           in: header
-          description: |
+          description: |-
             The media type to format the response data in (defaults to `application/json`). Allowed options:
 
             - `application/json`
@@ -267,7 +267,7 @@ paths:
     post:
       operationId: QueryDataSetPost
       summary: Query a data set (POST)
-      description: | 
+      description: |-
         Query a data set using a `POST` request, returning the filtered results.
         
         Note that for simpler queries or exploratory testing, there is also `GET` variant of this 
@@ -293,7 +293,7 @@ paths:
             type: string
         - name: debug
           in: query
-          description: | 
+          description: |- 
             Enable debug mode. Results will be formatted with human-readable labels to assist identification.
           required: false
           schema:
@@ -319,7 +319,7 @@ paths:
             default: 1000
         - name: Accept
           in: header
-          description: | 
+          description: |-
             The media type to format the response data in (defaults to `application/json`). Allowed options:
             
             - `application/json`
@@ -369,7 +369,7 @@ paths:
             type: string
         - name: Accept
           in: header
-          description: | 
+          description: |- 
             The media type to output the file in (defaults to `text/csv`). Allowed options:
             
             - `text/csv` - Outputs the data set as a compressed csv file (defaults to gzip).
@@ -561,7 +561,7 @@ components:
             type: string
         sort:
           type: array
-          description: |
+          description: |-
             List of sorts to apply to results. Sorts at the start of the list will be applied first.
             By default, results are sorted by time period in descending order.
           minItems: 1
@@ -570,7 +570,7 @@ components:
       additionalProperties: false
     DataSetQueryConditionAnd:
       type: object
-      description: |
+      description: |-
         A query condition that can only be true when all its sub-clauses resolve to true. This is 
         equivalent to the `AND` operator in SQL.
       required:
@@ -599,7 +599,7 @@ components:
                 year: 202122
     DataSetQueryConditionOr:
       type: object
-      description: |
+      description: |-
         A query condition that can only be true when one of its sub-clauses resolve to true. This
         is equivalent to the `OR` operator in SQL.
       required:
@@ -638,7 +638,7 @@ components:
                 year: 202223
     DataSetQueryConditionNot:
       type: object
-      description: |
+      description: |-
         A query condition that can only be true when its sub-clause resolves to false. This is 
         equivalent to the `NOT` operator in SQL.
       required:
@@ -758,7 +758,7 @@ components:
       additionalProperties: false
     DataSetQueryCriteriaLocations:
       type: object
-      description: | 
+      description: |- 
         The location IDs or codes to match results by.
         
         Note that there are some key differences in how results are matched when using IDs or codes.
@@ -797,7 +797,7 @@ components:
       properties:
         name:
           type: string
-          description: |
+          description: |-
             The name of the field to sort. This can be `TimePeriod`, a geographic level e.g. `Country` or a filter.
         order:
           type: string
@@ -902,7 +902,7 @@ components:
           description: The ID of the row.
         filters:
           type: object
-          description: |
+          description: |-
             A dictionary containing the row's associated filters. The key is the filter name and the value is ID of the filter item.
           additionalProperties:
             type: string
@@ -913,7 +913,7 @@ components:
           description: The ID of the location associated to this observation.
         values:
           type: object
-          description: |
+          description: |-
             A dictionary containing the row's data values. The key is the indicator name and the value is the measured indicator value.
           additionalProperties:
             type: string
@@ -1059,7 +1059,7 @@ components:
             - $ref: '#/components/schemas/DataSetVersionChangeTimePeriodViewModel'
         previous:
           type: object
-          description: | 
+          description: |- 
             The previous state of the change target (if applicable). Only fields that were 
             changed are included.
           additionalProperties: true
@@ -1169,7 +1169,7 @@ components:
           description: The time period in human-readable format.
     ErrorDictionary:
       type: object
-      description: |
+      description: |-
         A dictionary of errors associated to a model.
 
         - The key represents a path on the model, or the entire model when it is an empty string (`""`). 
@@ -1190,7 +1190,7 @@ components:
           description: The error's message.
         code:
           type: string
-          description: | 
+          description: |- 
             The error's code. May be used for further diagnosis, or error handling in consuming code.
         details:
           type: object
@@ -1216,7 +1216,7 @@ components:
       additionalProperties: false
     FilterMetaViewModel:
       type: object
-      description: |
+      description: |-
         A group of filterable facets (or characteristics) for the data. This is composed of filter items.
       required:
         - label
@@ -1321,7 +1321,7 @@ components:
         href: 'https://url-to-resource'
     LinksViewModel:
       type: object
-      description: |
+      description: |-
         A map of links to related resources/endpoints. A link to the current resource (i.e. `self`) is always provided.
       required:
         - self
@@ -1350,7 +1350,7 @@ components:
           description: The name of this location.
         code:
           type: string
-          description: |
+          description: |-
             The geographic code of this location.
             
             These can be:
@@ -1550,7 +1550,7 @@ components:
         - M11
         - M12
       type: string
-      description: |
+      description: |-
         The code describing a time period. This can be one of the following: 
 
         - `AY` - Academic year
@@ -1614,7 +1614,7 @@ components:
       description: A numeric unit.
     WarningDictionary:
       type: object
-      description: |
+      description: |-
         A dictionary of warnings associated to a model.
 
         - The key represents a path on the model, or the entire model when it is an empty string (`""`). 
@@ -1625,7 +1625,7 @@ components:
           $ref: '#/components/schemas/WarningViewModel'
     WarningViewModel:
       type: object
-      description: |
+      description: |-
         A warning that points to a potential issue. This is not a critical error, but may require attention to
         get the desired response.
       required:
