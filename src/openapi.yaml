@@ -817,6 +817,8 @@ components:
         - version
         - timePeriods
         - geographicLevels
+        - filters
+        - indicators
         - lastPublished
         - _links
       properties:
@@ -851,6 +853,16 @@ components:
         geographicLevels:
           type: array
           description: The geographic levels available in the data set.
+          items:
+            type: string
+        filters:
+          type: array
+          description: The filters available in the data set.
+          items:
+            type: string
+        indicators:
+          type: array
+          description: The indicators available in the data set.
           items:
             type: string
         lastPublished:

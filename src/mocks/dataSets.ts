@@ -161,14 +161,14 @@ export const allDataSets: DataSet[] = [
 
 export interface DataSet {
   id: string;
-  viewModel: DataSetViewModel;
+  viewModel: Omit<DataSetViewModel, 'filters' | 'indicators'>;
   publication: PublicationSummaryViewModel;
 }
 
 function createDataSet({
   publication,
   ...dataSet
-}: Omit<DataSetViewModel, '_links'> & {
+}: Omit<DataSetViewModel, 'filters' | 'indicators' | '_links'> & {
   publication: PublicationSummaryViewModel;
 }): DataSet {
   return {

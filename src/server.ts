@@ -22,6 +22,9 @@ import {
 } from './schema';
 import createPaginationLinks from './utils/createPaginationLinks';
 import createSelfLink from './utils/createSelfLink';
+import Database from './utils/Database';
+import { tableFile } from './utils/dataSetPaths';
+import getDataSetDetails from './utils/getDataSetDetails';
 import { dataSetDirs } from './utils/getDataSetDir';
 import {
   getDataSetCsvFileStream,
@@ -111,7 +114,7 @@ app.get('/api/v1/publications/:publicationId', (req, res) => {
   });
 });
 
-app.get('/api/v1/publications/:publicationId/data-sets', (req, res) => {
+app.get('/api/v1/publications/:publicationId/data-sets', async (req, res) => {
   const publication = allPublications.find(
     (publication) => publication.id === req.params.publicationId
   );
@@ -120,15 +123,19 @@ app.get('/api/v1/publications/:publicationId/data-sets', (req, res) => {
     throw new NotFoundError();
   }
 
-  const dataSets = allDataSets.filter(
-    (dataSet) => dataSet.publication.id === publication.id
-  );
+  const matchingDataSets = allDataSets
+    .filter((dataSet) => dataSet.publication.id === publication.id)
+    .map((dataSet) => dataSet.viewModel);
 
-  res.status(200).json(
-    dataSets.map(({ viewModel }) => ({
-      ...viewModel,
-      _links: addHostUrlToLinks(viewModel._links, req),
-    }))
+  const dataSets = await getDataSetDetails(matchingDataSets);
+
+  return res.status(200).json(
+    dataSets.map(({ _links, ...dataSet }) => {
+      return {
+        ...dataSet,
+        _links: addHostUrlToLinks(_links, req),
+      };
+    })
   );
 });
 
@@ -154,10 +161,11 @@ app.get('/api/v1/data-sets/:dataSetId', async (req, res) => {
   }
 
   const { viewModel } = matchingDataSet;
+  const [{ _links, ...dataSet }] = await getDataSetDetails([viewModel]);
 
   return res.status(200).json({
-    ...viewModel,
-    _links: addHostUrlToLinks(viewModel._links, req),
+    ...dataSet,
+    _links: addHostUrlToLinks(_links, req),
   });
 });
 
