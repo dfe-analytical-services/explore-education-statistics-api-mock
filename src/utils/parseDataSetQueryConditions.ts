@@ -15,7 +15,6 @@ import {
 } from '../schema';
 import { FilterRow } from '../types/dbSchemas';
 import { genericErrors } from '../validations/errors';
-import { criteriaWarnings } from '../validations/warnings';
 import DataSetQueryState from './DataSetQueryState';
 import { parseIdHashes, parseIdHashesAndCodes } from './idParsers';
 import {
@@ -243,8 +242,6 @@ async function createFiltersParser(
             items: values.filter((value) => !filterItemIdsByRawId[value]),
           })
         );
-
-        return undefined;
       }
 
       const groupedMatchingItems = () =>
@@ -338,8 +335,6 @@ async function createLocationsParser(
             items: values.filter((value) => !matchingValues.includes(value)),
           })
         );
-
-        return undefined;
       }
 
       const [idParams, codeValues] = partition(
@@ -511,19 +506,17 @@ function createGeographicLevelsParser(
   return createParser<DataSetQueryCriteriaGeographicLevels, GeographicLevel>({
     state,
     parser: (comparator, values, { path }) => {
-      const params = values
+      const params: string[] = values
         .filter((value) => geographicLevels.has(value))
         .map((value) => geographicLevelCsvLabels[value]);
 
-      if (!params.length) {
+      if (params.length < values.length) {
         state.appendWarning(
           path,
           genericErrors.notFound({
             items: values.filter((value) => !geographicLevels.has(value)),
           })
         );
-
-        return undefined;
       }
 
       switch (comparator) {
