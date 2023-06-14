@@ -11,7 +11,7 @@ import {
   spcYearGroupGenderDataSet,
 } from '../mocks/dataSets';
 
-const basePath = path.resolve(__dirname, '../data');
+const basePath = 'src/data';
 
 export const dataSetDirs = {
   [spcEthnicityLanguageDataSet.id]: 'spc_pupils_ethnicity_and_language',
