@@ -1,6 +1,21 @@
 import * as duckdb from 'duckdb';
 import type { Callback, TableData } from 'duckdb';
 import { noop } from 'lodash';
+import formatQuery from './formatQuery';
+
+const timerLabel = 'Ran query in';
+
+interface DebugOptions {
+  /**
+   * Show placeholders in the logged query. If not true, the
+   * query params are substituted into the query for convenience.
+   */
+  showPlaceholders?: boolean;
+}
+
+interface QueryOptions {
+  debug?: boolean | DebugOptions;
+}
 
 export interface StreamResult<T> {
   [Symbol.asyncIterator](): AsyncIterator<T>;
@@ -14,12 +29,24 @@ export default class Database {
   }
 
   /**
-   * Run a {@param query} using some {@param params}.
-   * Does not return any results.
+   * Run a query without returning any results.
    */
-  async run(query: string, params: (string | number)[] = []): Promise<void> {
+  async run(
+    query: string,
+    params: (string | number)[] = [],
+    options?: QueryOptions
+  ): Promise<void> {
+    if (options?.debug) {
+      console.time(timerLabel);
+      this.logQuery(query, params, options.debug);
+    }
+
     await new Promise((resolve, reject) => {
       this.db.run(query, ...params, ((err, result) => {
+        if (options?.debug) {
+          console.timeEnd(timerLabel);
+        }
+
         if (err) {
           reject(err);
         } else {
@@ -30,12 +57,24 @@ export default class Database {
   }
 
   /**
-   * Run a {@param query} using some {@param params}.
-   * Returns a list of results.
+   * Run a query and return a list of results.
    */
-  async all<TResult>(query: string, params: any[] = []): Promise<TResult[]> {
+  async all<TResult>(
+    query: string,
+    params: any[] = [],
+    options?: QueryOptions
+  ): Promise<TResult[]> {
+    if (options?.debug) {
+      console.time(timerLabel);
+      this.logQuery(query, params, options.debug);
+    }
+
     return await new Promise((resolve, reject) => {
       this.db.all(query, ...params, ((err, result) => {
+        if (options?.debug) {
+          console.timeEnd(timerLabel);
+        }
+
         if (err) {
           reject(err);
         } else {
@@ -46,11 +85,24 @@ export default class Database {
   }
 
   /**
-   * Get the first result from a {@param query} using some {@param params}.
+   * Run a query and return the first result.
    */
-  async first<TResult>(query: string, params: any[] = []): Promise<TResult> {
+  async first<TResult>(
+    query: string,
+    params: any[] = [],
+    options?: QueryOptions
+  ): Promise<TResult> {
+    if (options?.debug) {
+      console.time(timerLabel);
+      this.logQuery(query, params, options.debug);
+    }
+
     return await new Promise((resolve, reject) => {
       this.db.all(query, ...params, ((err, result) => {
+        if (options?.debug) {
+          console.timeEnd(timerLabel);
+        }
+
         if (err) {
           reject(err);
         } else {
@@ -61,14 +113,35 @@ export default class Database {
   }
 
   /**
-   * Stream the results of a {@param query} using some{@param params}.
-   * Returns a generator.
+   * Stream the results of a query as a generator.
    */
-  stream<TResult>(query: string, params: any[] = []): StreamResult<TResult> {
+  stream<TResult>(
+    query: string,
+    params: any[] = [],
+    options?: QueryOptions
+  ): StreamResult<TResult> {
+    if (options?.debug) {
+      this.logQuery(query, params, options.debug);
+    }
+
     return this.db.connect().stream(query, ...params) as StreamResult<TResult>;
   }
 
   close(): void {
     this.db.close(noop);
+  }
+
+  private logQuery(
+    query: string,
+    params: unknown[],
+    options: boolean | DebugOptions
+  ) {
+    console.log(
+      formatQuery(
+        query,
+        typeof options !== 'boolean' && options.showPlaceholders ? [] : params
+      )
+    );
+    console.log(params);
   }
 }
