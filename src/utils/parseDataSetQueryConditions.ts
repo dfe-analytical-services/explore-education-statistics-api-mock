@@ -271,7 +271,7 @@ async function createFiltersParser(
                   .join(' AND ')})`,
                 params,
               }
-            : undefined;
+            : { fragment: 'false' };
         case 'notIn':
           return params.length > 0
             ? {
@@ -283,7 +283,7 @@ async function createFiltersParser(
                   .join(' AND ')})`,
                 params,
               }
-            : undefined;
+            : { fragment: 'false' };
       }
     },
   });
@@ -447,7 +447,6 @@ function createTimePeriodsParser(
         year,
         timePeriodCodeIdentifiers[code],
       ]);
-      const placeholders = values.map((_) => '(?, ?)');
 
       switch (comparator) {
         case 'eq':
@@ -481,19 +480,19 @@ function createTimePeriodsParser(
             params,
           };
         case 'in':
-          return params.length > 0
-            ? {
-                fragment: `(data.time_period, data.time_identifier) IN (${placeholders})`,
-                params,
-              }
-            : undefined;
+          return {
+            fragment: `(data.time_period, data.time_identifier) IN (${values.map(
+              (_) => '(?, ?)'
+            )})`,
+            params,
+          };
         case 'notIn':
-          return params.length > 0
-            ? {
-                fragment: `(data.time_period, data.time_identifier) NOT IN (${placeholders})`,
-                params,
-              }
-            : undefined;
+          return {
+            fragment: `(data.time_period, data.time_identifier) NOT IN (${values.map(
+              (_) => '(?, ?)'
+            )})`,
+            params,
+          };
       }
     },
   });
