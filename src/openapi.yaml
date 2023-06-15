@@ -676,8 +676,6 @@ components:
           in: [filter1, filter2]
         locations:
           notIn: [location1, location2]
-        locationAttributes:
-          eq: location3
         geographicLevels:
           eq: LocalAuthority
         timePeriods:
@@ -759,32 +757,31 @@ components:
     DataSetQueryCriteriaLocations:
       type: object
       description: |- 
-        The location IDs or codes to match results by.
+        The locations to match results by. These can be matched either by the location ID or code. 
+        Note the following differences:
         
-        Note that there are some key differences in how results are matched when using IDs or codes.
+        - IDs only match a **single** location
+        - Codes may match **multiple** locations
         
-        - IDs are **exactly** matched to locations. An ID can only refer to a single location.
-        - Codes are **inexactly** matched to locations. Codes can refer to any location with an 
-          attribute matching one of the codes.
-        
-        Using codes may bring back more results than you would expect, so it's a good idea to
-        combine these with the `geographicLevels` criteria to get a more precise set of results.
+        Whilst codes are mostly unique to a single location, they sometimes are used for multiple 
+        locations. This may match more results than you expect so it is recommended to use IDs where
+        possible.
       properties:
         eq:
           type: string
-          description: Results must have a location matching the given ID.
+          description: Results must have a location matching the given ID or code.
         notEq:
           type: string
-          description: Results must not have a location that matches the given ID.
+          description: Results must not have a location that matches the given ID or code.
         in:
           type: array
-          description: Results must have at least one location matching the given IDs.
+          description: Results must have at least one location matching the given IDs or codes.
           minItems: 1
           items:
             type: string
         notIn:
           type: array
-          description: Results must not have any locations matching the given IDs.
+          description: Results must not have any locations matching the given IDs or codes.
           minItems: 1
           items:
             type: string
@@ -901,11 +898,11 @@ components:
       additionalProperties: false
     DataSetRowViewModel:
       type: object
-      description: A row of data point measurements matching a set of facets (filters, indicators, locations, time periods).
+      description: A row of data point measurements matching a set of facets.
       required:
         - filters
         - geographicLevel
-        - locationId
+        - locations
         - values
         - timePeriod
       properties:
@@ -915,14 +912,22 @@ components:
         filters:
           type: object
           description: |-
-            A dictionary containing the row's associated filters. The key is the filter name and the value is ID of the filter item.
+            A dictionary containing the row's associated filters. 
+            
+            The key is the filter name and the value is ID of the filter item.
           additionalProperties:
             type: string
         geographicLevel:
           $ref: '#/components/schemas/GeographicLevel'
-        locationId:
-          type: string
-          description: The ID of the location associated to this observation.
+        locations:
+          type: object
+          description: |-
+            A dictionary containing the row's associated locations. 
+            
+            The key is the geographic level and the value is the ID or code of the location.
+          additionalProperties:
+            type: string
+            description: The ID or code of the location.
         values:
           type: object
           description: |-
@@ -1138,7 +1143,6 @@ components:
     DataSetVersionChangeLocationViewModel:
       type: object
       description: A change to a location.
-      additionalProperties: false
       required:
         - id
         - name
@@ -1153,17 +1157,15 @@ components:
           description: The name of the location.
         code:
           type: string
-          description: The geographic code of the location.
+          description: The code of the location (if applicable).
         level:
           $ref: '#/components/schemas/GeographicLevel'
-        attributes:
-          type: object
-          description: Other geographic attributes of the location e.g. its country, region, etc.
-          additionalProperties:
-            $ref: '#/components/schemas/LocationAttributeViewModel'
+      additionalProperties:
+        type: string
+        description: Other properties of the location.
     DataSetVersionChangeTimePeriodViewModel:
       type: object
-      description: A change to a location.
+      description: A change to a time period.
       additionalProperties: false
       required:
         - code
@@ -1344,46 +1346,27 @@ components:
         $ref: '#/components/schemas/LinkViewModel'
     LocationMetaViewModel:
       type: object
-      description: The location that a data point was measured at.
+      description: A geographic location e.g. a country, region, local authority, etc.
       required:
         - id
         - name
-        - level
         - code
-      additionalProperties: false
       properties:
         id:
           type: string
-          description: The ID of this location.
-        level:
-          $ref: '#/components/schemas/GeographicLevel'
+          description: The ID of the location.
         name:
           type: string
-          description: The name of this location.
+          description: The name of the location.
         code:
           type: string
-          description: |-
-            The geographic code of this location.
+          description: |- 
+            The code of the location (if applicable). These can be:
             
-            These can be:
+            - ONS codes for geographic levels like countries, local authorities, etc
+            - DfE codes for geographic levels like schools, providers, etc
             
-            - ONS codes for higher geographic levels (countries, local authorities, etc)
-            - DfE codes for lower geographic levels (schools, providers, etc)
-        attributes:
-          type: object
-          description: Other geographic attributes of this location e.g. its country, region, etc.
-          additionalProperties:
-            $ref: '#/components/schemas/LocationAttributeViewModel'
-    LocationAttributeViewModel:
-      type: object
-      description: A geographic attribute of a location e.g. its country, region, etc.
-      properties:
-        name:
-          type: string
-          description: The name of this location attribute.
-        code:
-          type: string
-          description: The geographic code of this location attribute.
+            Note that these codes may not be unique across locations at the same geographic level.
     PagedDataSetVersionsViewModel:
       type: object
       additionalProperties: false

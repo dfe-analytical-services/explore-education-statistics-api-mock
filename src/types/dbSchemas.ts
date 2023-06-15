@@ -12,10 +12,12 @@ export interface TimePeriodRow {
   identifier: string;
 }
 
-export type LocationRow = {
+export interface LocationRow {
   id: number;
-  geographic_level: GeographicLevel;
-} & Dictionary<string>;
+  level: GeographicLevel;
+  code: string;
+  name: string;
+}
 
 export interface FilterRow {
   id: number;

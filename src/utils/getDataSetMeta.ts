@@ -2,7 +2,6 @@ import {
   DataSetMetaViewModel,
   FilterMetaViewModel,
   IndicatorMetaViewModel,
-  LocationMetaAttributeViewModel,
   LocationMetaViewModel,
   TimePeriodMetaViewModel,
   Unit,
@@ -22,11 +21,6 @@ import {
   createIndicatorIdHasher,
   createLocationIdHasher,
 } from './idHashers';
-import {
-  columnsToGeographicLevel,
-  csvLabelsToGeographicLevels,
-  geographicLevelColumns,
-} from './locationConstants';
 import parseTimePeriodCode from './parseTimePeriodCode';
 
 export default async function getDataSetMeta(
@@ -88,58 +82,14 @@ async function getLocationsMeta(
 
   return locations.reduce<Dictionary<LocationMetaViewModel[]>>(
     (acc, location) => {
-      const mainLevel = csvLabelsToGeographicLevels[location.geographic_level];
-
-      if (!acc[mainLevel]) {
-        acc[mainLevel] = [];
+      if (!acc[location.level]) {
+        acc[location.level] = [];
       }
 
-      const mainLevelCols = geographicLevelColumns[mainLevel];
-
-      const attributeCols = Object.entries(location)
-        .filter(([col, value]) => {
-          const level = columnsToGeographicLevel[col];
-
-          return (
-            value &&
-            col !== mainLevelCols.code &&
-            col !== mainLevelCols.name &&
-            (col === geographicLevelColumns[level]?.name ||
-              col === geographicLevelColumns[level]?.code)
-          );
-        })
-        .map(([col]) => col);
-
-      let attributes: Dictionary<LocationMetaAttributeViewModel> | undefined;
-
-      if (attributeCols.length > 0) {
-        attributes = attributeCols.reduce<
-          Dictionary<LocationMetaAttributeViewModel>
-        >((acc, col) => {
-          const level = columnsToGeographicLevel[col];
-
-          if (!acc[level]) {
-            acc[level] = {};
-          }
-
-          if (geographicLevelColumns[level].name === col) {
-            acc[level].name = location[col];
-          }
-
-          if (geographicLevelColumns[level].code === col) {
-            acc[level].code = location[col];
-          }
-
-          return acc;
-        }, {});
-      }
-
-      acc[mainLevel].push({
+      acc[location.level].push({
         id: hasher.encode(location.id),
-        code: location[mainLevelCols.code],
-        name: location[mainLevelCols.name],
-        level: mainLevel,
-        attributes,
+        code: location.code,
+        name: location.name,
       });
 
       return acc;

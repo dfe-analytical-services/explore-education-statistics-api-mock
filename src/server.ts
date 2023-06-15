@@ -22,8 +22,6 @@ import {
 } from './schema';
 import createPaginationLinks from './utils/createPaginationLinks';
 import createSelfLink from './utils/createSelfLink';
-import Database from './utils/Database';
-import { tableFile } from './utils/dataSetPaths';
 import getDataSetDetails from './utils/getDataSetDetails';
 import { dataSetDirs } from './utils/getDataSetDir';
 import {
@@ -225,8 +223,10 @@ app.get('/api/v1/data-sets/:dataSetId/query', (req, res) => {
   return queryDataSet(query, req, res);
 });
 
-app.post('/api/v1/data-sets/:dataSetId/query', (req, res) => {
-  return queryDataSet(req.body, req, res);
+app.post('/api/v1/data-sets/:dataSetId/query', async (req, res) => {
+  console.time('Processing time');
+  await queryDataSet(req.body, req, res);
+  console.timeEnd('Processing time');
 });
 
 app.get('/api/v1/data-sets/:dataSetId/file', async (req, res) => {
