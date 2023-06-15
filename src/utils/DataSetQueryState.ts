@@ -1,4 +1,3 @@
-import Hashids from 'hashids';
 import { isEqual } from 'lodash';
 import { DataSetQuery, ErrorViewModel, WarningViewModel } from '../schema';
 import Database from './Database';
@@ -7,13 +6,14 @@ import {
   createFilterIdHasher,
   createIndicatorIdHasher,
   createLocationIdHasher,
+  IdHasher,
 } from './idHashers';
 
 export default class DataSetQueryState {
   public readonly db: Database = new Database();
-  public readonly filterIdHasher: Hashids;
-  public readonly indicatorIdHasher: Hashids;
-  public readonly locationIdHasher: Hashids;
+  public readonly filterIdHasher: IdHasher;
+  public readonly indicatorIdHasher: IdHasher;
+  public readonly locationIdHasher: IdHasher;
 
   private readonly errors: Dictionary<ErrorViewModel[]> = {};
   private readonly warnings: Dictionary<WarningViewModel[]> = {};

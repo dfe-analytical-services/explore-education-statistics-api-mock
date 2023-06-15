@@ -1,19 +1,22 @@
-import Hashids from 'hashids';
+import { IdHasher } from './idHashers';
 
-export function parseIdHashes(ids: string[], idHasher: Hashids): number[] {
+export function parseIdHashes(ids: string[], idHasher: IdHasher): number[] {
   return ids.map((id) => {
     try {
-      return idHasher.decode(id)[0] as number;
+      return idHasher.decode(id) as number;
     } catch (err) {
       return Number.NaN;
     }
   });
 }
 
-export function parseIdLikeStrings(ids: string[], idHasher: Hashids): string[] {
+export function parseIdLikeStrings(
+  ids: string[],
+  idHasher: IdHasher
+): string[] {
   return ids.map((id) => {
     try {
-      return idHasher.decode(id)[0].toString();
+      return idHasher.decode(id).toString();
     } catch (err) {
       // If the id is NaN, then allow this as it could be a
       // code or other identifier that can be used instead.
@@ -25,11 +28,11 @@ export function parseIdLikeStrings(ids: string[], idHasher: Hashids): string[] {
 
 export function parseIdHashesAndCodes(
   ids: string[],
-  idHasher: Hashids
+  idHasher: IdHasher
 ): (string | number)[] {
   return ids.map((id) => {
     try {
-      const decoded = idHasher.decode(id)[0];
+      const decoded = idHasher.decode(id);
       return typeof decoded === 'number' ? decoded : id;
     } catch (err) {
       return id;

@@ -1,4 +1,3 @@
-import Hashids from 'hashids';
 import { compact, keyBy, mapValues, orderBy, uniq } from 'lodash';
 import Papa from 'papaparse';
 import { ValidationError } from '../errors';
@@ -14,7 +13,7 @@ import { tableFile } from './dataSetPaths';
 import { DataSetQueryMeta } from './DataSetQueryMeta';
 import DataSetQueryState from './DataSetQueryState';
 import getDataSetDir from './getDataSetDir';
-import { createIndicatorIdHasher } from './idHashers';
+import { createIndicatorIdHasher, IdHasher } from './idHashers';
 import { parseIdLikeStrings } from './idParsers';
 import {
   baseGeographicLevelOrder,
@@ -67,7 +66,7 @@ export async function runDataSetQuery(
       (level: GeographicLevel) => baseGeographicLevelOrder.indexOf(level)
     );
 
-    const hashedId = (id: number | string, hasher: Hashids) => {
+    const hashedId = (id: number | string, hasher: IdHasher) => {
       if (debug) {
         const [idPart, label] = id.toString().split(DEBUG_DELIMITER, 2);
         return hasher.encode(Number(idPart)) + DEBUG_DELIMITER + label;
