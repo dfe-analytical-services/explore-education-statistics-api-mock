@@ -966,12 +966,10 @@ components:
           items:
             $ref: '#/components/schemas/IndicatorMetaViewModel'
         locations:
-          type: object
-          description: All the locations associated with the data set.
-          additionalProperties:
-            type: array
-            items:
-              $ref: '#/components/schemas/LocationMetaViewModel'
+          type: array
+          description: All the locations associated with the data set, grouped by level.
+          items:
+            $ref: '#/components/schemas/LocationLevelMetaViewModel'
         timePeriods:
           type: array
           description: All the time periods associated with the data set.
@@ -1272,7 +1270,7 @@ components:
       additionalProperties: false
     GeographicLevel:
       type: string
-      description: The geographic group/level for a data point's location.
+      description: A geographic level that locations are grouped by.
       enum:
         - Country
         - EnglishDevolvedArea
@@ -1344,6 +1342,23 @@ components:
           $ref: '#/components/schemas/LinkViewModel'
       additionalProperties:
         $ref: '#/components/schemas/LinkViewModel'
+    LocationLevelMetaViewModel:
+      type: object
+      description: A geographic level's locations.
+      required:
+        - label
+        - level
+        - options
+      properties:
+        label:
+          type: string
+          description: The human-readable label of the location level.
+        level:
+          $ref: '#/components/schemas/GeographicLevel'
+        options:
+          type: array
+          items:
+            $ref: '#/components/schemas/LocationMetaViewModel'
     LocationMetaViewModel:
       type: object
       description: A geographic location e.g. a country, region, local authority, etc.

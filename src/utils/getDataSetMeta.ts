@@ -1,7 +1,9 @@
 import {
   DataSetMetaViewModel,
   FilterMetaViewModel,
+  GeographicLevel,
   IndicatorMetaViewModel,
+  LocationLevelMetaViewModel,
   LocationMetaViewModel,
   TimePeriodMetaViewModel,
   Unit,
@@ -21,6 +23,7 @@ import {
   createIndicatorIdHasher,
   createLocationIdHasher,
 } from './idHashers';
+import { geographicLevelLabels } from './locationConstants';
 import parseTimePeriodCode from './parseTimePeriodCode';
 
 export default async function getDataSetMeta(
@@ -69,18 +72,18 @@ async function getTimePeriodsMeta(
 async function getLocationsMeta(
   db: Database,
   dataSetDir: string
-): Promise<Dictionary<LocationMetaViewModel[]>> {
+): Promise<LocationLevelMetaViewModel[]> {
   const locations = await db.all<LocationRow>(
     `SELECT * FROM '${tableFile(dataSetDir, 'locations')}'`
   );
 
   if (locations.length === 0) {
-    return {};
+    return [];
   }
 
   const hasher = createLocationIdHasher(dataSetDir);
 
-  return locations.reduce<Dictionary<LocationMetaViewModel[]>>(
+  const grouped = locations.reduce<Dictionary<LocationMetaViewModel[]>>(
     (acc, location) => {
       if (!acc[location.level]) {
         acc[location.level] = [];
@@ -96,6 +99,16 @@ async function getLocationsMeta(
     },
     {}
   );
+
+  return Object.entries(grouped).map(([level, locations]) => {
+    const geographicLevel = level as GeographicLevel;
+
+    return {
+      label: geographicLevelLabels[geographicLevel],
+      level: geographicLevel,
+      options: locations,
+    };
+  });
 }
 
 async function getFiltersMeta(
