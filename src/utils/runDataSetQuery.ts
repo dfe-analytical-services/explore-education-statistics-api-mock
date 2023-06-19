@@ -1,4 +1,4 @@
-import { compact, keyBy, mapValues, orderBy, uniq } from 'lodash';
+import { compact, keyBy, mapValues, snakeCase, uniq } from 'lodash';
 import Papa from 'papaparse';
 import { ValidationError } from '../errors';
 import {
@@ -16,8 +16,6 @@ import getDataSetDir from './getDataSetDir';
 import { createIndicatorIdHasher, IdHasher } from './idHashers';
 import { parseIdLikeStrings } from './idParsers';
 import {
-  baseGeographicLevelOrder,
-  columnsToGeographicLevel,
   csvLabelsToGeographicLevels,
   geographicLevelColumns,
 } from './locationConstants';
@@ -26,10 +24,6 @@ import parseTimePeriodCode from './parseTimePeriodCode';
 import { indexPlaceholders } from './queryUtils';
 
 const DEBUG_DELIMITER = ' :: ';
-
-interface DataRowWithLocation extends DataRow {
-  location_id: number;
-}
 
 export async function runDataSetQuery(
   dataSetId: string,
@@ -40,7 +34,7 @@ export async function runDataSetQuery(
   const state = new DataSetQueryState(dataSetDir);
 
   try {
-    const { results, total, meta } = await runQuery<DataRowWithLocation>(
+    const { results, total, meta } = await runQuery<DataRow>(
       state,
       { ...query, page, pageSize },
       {
@@ -61,11 +55,6 @@ export async function runDataSetQuery(
       });
     }
 
-    const orderedGeographicLevels = orderBy(
-      [...meta.geographicLevels],
-      (level: GeographicLevel) => baseGeographicLevelOrder.indexOf(level)
-    );
-
     const hashedId = (id: number | string, hasher: IdHasher) => {
       if (debug) {
         const [idPart, label] = id.toString().split(DEBUG_DELIMITER, 2);
@@ -73,37 +62,6 @@ export async function runDataSetQuery(
       }
 
       return hasher.encode(Number(id));
-    };
-
-    const hashLocationId = (result: DataRowWithLocation) => {
-      const hashedId = state.locationIdHasher.encode(result.location_id);
-
-      if (debug) {
-        const attributes = orderedGeographicLevels.reduce<string[]>(
-          (acc, level) => {
-            const levelCols = geographicLevelColumns[level];
-            const levelName = result[levelCols.name];
-            const levelCode = result[levelCols.code];
-
-            if (typeof levelName === 'string') {
-              let next = levelName;
-
-              if (!!levelCode) {
-                next += ` (${levelCode})`;
-              }
-
-              acc.push(next);
-            }
-
-            return acc;
-          },
-          []
-        );
-
-        return hashedId + DEBUG_DELIMITER + attributes.join(', ');
-      }
-
-      return hashedId;
     };
 
     return {
@@ -126,7 +84,26 @@ export async function runDataSetQuery(
             year: Number(result.time_period),
           },
           geographicLevel: csvLabelsToGeographicLevels[result.geographic_level],
-          locationId: hashLocationId(result),
+          locations: [...meta.geographicLevels].reduce<Dictionary<string>>(
+            (acc, level) => {
+              const cols = geographicLevelColumns[level];
+              const alias = geographicLevelAlias(level);
+              const id = result[`${alias}_id`] as number;
+
+              if (id) {
+                const hashedId = state.locationIdHasher.encode(id);
+
+                acc[level] = debug
+                  ? [hashedId, result[cols.name], result[cols.code]].join(
+                      DEBUG_DELIMITER
+                    )
+                  : hashedId;
+              }
+
+              return acc;
+            },
+            {}
+          ),
           values: mapValues(indicatorsById, (indicator) =>
             result[indicator.name].toString()
           ),
@@ -183,7 +160,7 @@ interface RunQueryReturn<TRow extends DataRow = DataRow> {
   meta: DataSetQueryMeta;
 }
 
-async function runQuery<TRow extends DataRow>(
+async function runQuery<TRow extends DataRow = DataRow>(
   state: DataSetQueryState,
   query: DataSetQuery & { page: number; pageSize: number },
   options: RunQueryOptions = {}
@@ -197,21 +174,13 @@ async function runQuery<TRow extends DataRow>(
     createIndicatorIdHasher(state.dataSetDir)
   );
 
-  const [locationCols, filterCols, indicators] = await Promise.all([
-    getLocationColumns(state),
-    getFilterColumns(state),
-    getIndicators(state, indicatorIds),
-  ]);
-
-  const geographicLevels = locationCols.reduce((acc, col) => {
-    const level = columnsToGeographicLevel[col];
-
-    if (level) {
-      acc.add(level);
-    }
-
-    return acc;
-  }, new Set<GeographicLevel>());
+  const [locationCols, geographicLevels, filterCols, indicators] =
+    await Promise.all([
+      getLocationColumns(state),
+      getGeographicLevels(state),
+      getFilterColumns(state),
+      getIndicators(state, indicatorIds),
+    ]);
 
   const meta: DataSetQueryMeta = {
     geographicLevels,
@@ -219,9 +188,6 @@ async function runQuery<TRow extends DataRow>(
     filterCols,
     indicators,
   };
-
-  const locationsTableCols = locationCols.map((col) => `locations.${col}`);
-  const dataTableLocationCols = locationCols.map((col) => `data.${col}`);
 
   const where = await parseDataSetQueryConditions(
     state,
@@ -232,10 +198,13 @@ async function runQuery<TRow extends DataRow>(
   const totalQuery = `
       SELECT count(*) AS total
       FROM '${tableFile('data')}' AS data
-      JOIN '${tableFile('locations')}' AS locations
-        ON (${locationsTableCols}) = (${dataTableLocationCols})
       ${where.fragment ? `WHERE ${where.fragment}` : ''}
   `;
+
+  const locationIdCols = [...geographicLevels].map((level) => {
+    const alias = geographicLevelAlias(level);
+    return `${alias}.id AS ${alias}_id`;
+  });
 
   // We essentially split this query into two parts:
   // 1. The inner main query which is offset paginated
@@ -254,18 +223,18 @@ async function runQuery<TRow extends DataRow>(
       WITH data AS (
           SELECT data.time_period,
                  data.time_identifier,
+                 data.geographic_level,
                  ${[
-                   'locations.id AS location_id',
-                   ...dataTableLocationCols,
-                   ...filterCols.map((col) => `data.${col} as ${col}`),
+                   ...locationCols.map((col) => `data.${col}`),
+                   ...locationIdCols,
+                   ...filterCols.map((col) => `data.${col} AS ${col}`),
                    ...indicators.map((i) => `data."${i.name}"`),
                  ]}
           FROM '${tableFile('data')}' AS data
-          JOIN '${tableFile('locations')}' AS locations
-            ON (${locationsTableCols}) = (${dataTableLocationCols})
           JOIN '${tableFile('time_periods')}' AS time_periods
             ON (time_periods.year, time_periods.identifier) 
                 = (data.time_period, data.time_identifier)
+          ${getLocationJoins(state, geographicLevels)}                
           ${where.fragment ? `WHERE ${where.fragment}` : ''}
           ORDER BY ${getOrderings(query, state, filterCols, geographicLevels)}
           LIMIT ?
@@ -318,7 +287,9 @@ async function runQuery<TRow extends DataRow>(
 
   const [{ total }, results] = await Promise.all([
     db.first<{ total: number }>(totalQuery, where.params),
-    db.all<TRow>(resultsQuery, [...where.params, pageSize, pageOffset]),
+    db.all<TRow>(resultsQuery, [...where.params, pageSize, pageOffset], {
+      debug: true,
+    }),
   ]);
 
   return {
@@ -326,6 +297,22 @@ async function runQuery<TRow extends DataRow>(
     total,
     meta,
   };
+}
+
+function getLocationJoins(
+  { tableFile }: DataSetQueryState,
+  geographicLevels: Set<GeographicLevel>
+): string {
+  return [...geographicLevels]
+    .map((level) => {
+      const levelAlias = geographicLevelAlias(level);
+      const levelCols = geographicLevelColumns[level];
+
+      return `LEFT JOIN '${tableFile('locations')}' AS ${levelAlias} 
+          ON ${levelAlias}.code = data.${levelCols.code} 
+            AND ${levelAlias}.name = data.${levelCols.name}`;
+    })
+    .join('\n');
 }
 
 function getOrderings(
@@ -390,13 +377,28 @@ async function getLocationColumns({
   dataSetDir,
 }: DataSetQueryState): Promise<string[]> {
   return (
-    await db.all<{ column_name: string }>(
-      `DESCRIBE SELECT * EXCLUDE id FROM '${tableFile(
-        dataSetDir,
-        'locations'
-      )}';`
+    await db.all<{ level: GeographicLevel }>(
+      `SELECT DISTINCT level FROM '${tableFile(dataSetDir, 'locations')}'`
     )
-  ).map((row) => row.column_name);
+  ).flatMap((row) => {
+    const cols = geographicLevelColumns[row.level];
+    return [cols.code, cols.name, ...(cols.other ?? [])];
+  });
+}
+
+async function getGeographicLevels({
+  db,
+  dataSetDir,
+}: DataSetQueryState): Promise<Set<GeographicLevel>> {
+  const rows = await db.all<{ geographic_level: string }>(
+    `SELECT DISTINCT geographic_level FROM '${tableFile(dataSetDir, 'data')}'`
+  );
+
+  return new Set<GeographicLevel>(
+    compact(
+      rows.map((row) => csvLabelsToGeographicLevels[row.geographic_level])
+    )
+  );
 }
 
 async function getFilterColumns({
@@ -454,4 +456,8 @@ async function getIndicators(
   }
 
   return indicators;
+}
+
+function geographicLevelAlias(level: GeographicLevel): string {
+  return snakeCase(level);
 }

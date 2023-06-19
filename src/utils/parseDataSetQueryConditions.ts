@@ -1,4 +1,4 @@
-import { compact, groupBy, keyBy, noop, partition, zipObject } from 'lodash';
+import { compact, groupBy, keyBy, noop, zipObject } from 'lodash';
 import { ValueOf } from 'type-fest';
 import {
   DataSetQuery,
@@ -13,7 +13,7 @@ import {
   GeographicLevel,
   TimePeriodViewModel,
 } from '../schema';
-import { FilterRow } from '../types/dbSchemas';
+import { FilterRow, LocationRow } from '../types/dbSchemas';
 import { genericErrors } from '../validations/errors';
 import DataSetQueryState from './DataSetQueryState';
 import { parseIdHashes, parseIdHashesAndCodes } from './idParsers';
@@ -21,7 +21,7 @@ import {
   geographicLevelColumns,
   geographicLevelCsvLabels,
 } from './locationConstants';
-import { indexPlaceholders, placeholders } from './queryUtils';
+import { placeholders } from './queryUtils';
 import { timePeriodCodeIdentifiers } from './timePeriodConstants';
 
 interface QueryFragmentParams {
@@ -39,11 +39,15 @@ type CriteriaParser<TCriteria extends ValueOf<DataSetQueryCriteria>> = (
   path: string
 ) => QueryFragmentParams | void;
 
-type CriteriaParsers = Required<{
-  [Key in keyof DataSetQueryCriteria]: CriteriaParser<
-    Required<DataSetQueryCriteria>[Key]
+type AllDataSetQueryCriteria = Required<DataSetQueryCriteria>;
+
+type CriteriaParsers = {
+  [Key in keyof AllDataSetQueryCriteria]: CriteriaParser<
+    AllDataSetQueryCriteria[Key] extends any[]
+      ? AllDataSetQueryCriteria[Key][number]
+      : AllDataSetQueryCriteria[Key]
   >;
-}>;
+};
 
 export type FilterItem = Pick<FilterRow, 'id' | 'label' | 'group_name'>;
 
@@ -54,16 +58,6 @@ export default async function parseDataSetQueryConditions(
 ): Promise<QueryFragmentParams> {
   const rawFilterItemIds = new Set<string>();
   const rawLocationIds = new Set<string>();
-
-  const collectLocationIds = createParser<
-    DataSetQueryCriteriaLocations,
-    string
-  >({
-    state,
-    parser: (comparator, values) => {
-      values.forEach((value) => rawLocationIds.add(value));
-    },
-  });
 
   // Perform a first pass to collect any ids so that we can
   // fetch the actual metadata entities. We'll need these
@@ -76,12 +70,17 @@ export default async function parseDataSetQueryConditions(
       },
     }),
     geographicLevels: noop,
-    locations: collectLocationIds,
+    locations: createParser<DataSetQueryCriteriaLocations, string>({
+      state,
+      parser: (comparator, values) => {
+        values.forEach((value) => rawLocationIds.add(value));
+      },
+    }),
     timePeriods: noop,
   });
 
   const [locationsParser, filtersParser] = await Promise.all([
-    createLocationsParser(state, [...rawLocationIds], geographicLevels),
+    createLocationsParser(state, [...rawLocationIds]),
     createFiltersParser(state, [...rawFilterItemIds]),
   ]);
 
@@ -142,21 +141,30 @@ function parseCriteria(
   parsers: CriteriaParsers
 ): QueryFragmentParams {
   return Object.entries(criteria).reduce<QueryFragmentParams>(
-    (acc, [k, comparators]) => {
+    (acc, [k, value]) => {
       const key = k as keyof DataSetQueryCriteria;
-      const parser = parsers[key] as CriteriaParser<any>;
 
-      if (!parser) {
+      if (!parsers[key]) {
         throw new Error(`No matching parser for '${key}'`);
       }
 
-      const parsed = parser(comparators, `${path}.${key}`);
+      const parser = parsers[key] as CriteriaParser<Dictionary<unknown>>;
 
-      if (parsed?.fragment) {
-        acc.fragment = acc.fragment
-          ? `${acc.fragment} AND ${parsed.fragment}`
-          : parsed.fragment;
-        acc.params.push(...parsed.params);
+      const appendComparators = (comparators: Dictionary<unknown>) => {
+        const parsed = parser(comparators, `${path}.${key}`);
+
+        if (parsed?.fragment) {
+          acc.fragment = acc.fragment
+            ? `${acc.fragment} AND ${parsed.fragment}`
+            : parsed.fragment;
+          acc.params.push(...parsed.params);
+        }
+      };
+
+      if (Array.isArray(value)) {
+        value.forEach(appendComparators);
+      } else {
+        appendComparators(value);
       }
 
       return acc;
@@ -291,147 +299,111 @@ async function createFiltersParser(
 
 async function createLocationsParser(
   state: DataSetQueryState,
-  rawLocationIds: string[],
-  geographicLevels: Set<GeographicLevel>
-) {
-  const { tableFile } = state;
-
+  rawLocationIds: string[]
+): Promise<CriteriaParser<DataSetQueryCriteriaLocations>> {
   const parsedIds = parseIdHashesAndCodes(
     rawLocationIds,
     state.locationIdHasher
   );
 
-  const rawToParsedIds = zipObject(rawLocationIds, parsedIds);
+  const [ids, codes] = parsedIds.reduce(
+    (acc, parsedId) => {
+      if (typeof parsedId === 'number') {
+        acc[0].add(parsedId);
+      } else {
+        acc[1].add(parsedId);
+      }
 
-  const [ids, codes] = partition(parsedIds, (id) => typeof id === 'number') as [
-    number[],
-    string[]
-  ];
-
-  const locationCodeCols = [...geographicLevels].map(
-    (level) => geographicLevelColumns[level].code
+      return acc;
+    },
+    [new Set<number>(), new Set<string>()]
   );
 
-  const [matchingLocationIds, matchingLocationCodes] = await Promise.all([
-    getMatchingLocationIds(state, ids),
-    getMatchingLocationCodes(state, codes, locationCodeCols),
-  ]);
+  const locations = await getLocations(state, [...ids], [...codes]);
+
+  const rawToParsedIds = zipObject(parsedIds, rawLocationIds);
+  const locationsByRawId = groupBy(locations, (location) => {
+    return rawToParsedIds[ids.has(location.id) ? location.id : location.code];
+  });
 
   return createParser<DataSetQueryCriteriaLocations, string>({
     state,
-    parser: (comparator, values, { path }) => {
-      const parsedIds = values.map((value) => rawToParsedIds[value]);
+    parser: (comparator, values, { path, criteria }) => {
+      const matchingLocations = compact(
+        values.flatMap((value) => locationsByRawId[value] ?? [])
+      );
 
-      const matchingValues = parsedIds.filter((parsedId) => {
-        return typeof parsedId === 'number'
-          ? matchingLocationIds.has(parsedId)
-          : matchingLocationCodes.has(parsedId);
-      });
+      console.log(matchingLocations);
 
-      if (matchingValues.length < values.length) {
+      if (matchingLocations.length < values.length) {
         state.appendWarning(
           path,
           genericErrors.notFound({
-            items: values.filter((value) => !matchingValues.includes(value)),
+            items: values.filter((value) => !locationsByRawId[value]),
           })
         );
       }
 
-      const [idParams, codeValues] = partition(
-        parsedIds,
-        (parsedId) => typeof parsedId === 'number'
+      const locationsByLevel = groupBy(
+        matchingLocations,
+        (location) => location.level
       );
 
-      const codeParams =
-        codeValues.length > 0 ? locationCodeCols.flatMap(() => codeValues) : [];
+      const createFragment = ({
+        comparator,
+        join,
+      }: {
+        comparator: 'IN' | 'NOT IN';
+        join: 'AND' | 'OR';
+      }) => {
+        const fragment = Object.entries(locationsByLevel)
+          .map(([level, locations]) => {
+            const cols = geographicLevelColumns[level as GeographicLevel];
 
-      const params = [...idParams, ...codeParams];
+            return `(${cols.code}, ${cols.name}) ${comparator} (${locations.map(
+              (_) => '(?, ?)'
+            )})`;
+          })
+          .join(` ${join} `);
 
-      const createFragment = (options: {
-        idFragment: string;
-        codeFragment: string;
-        join: string;
-      }): string => {
-        const fragments = compact([
-          idParams.length > 0 ? options.idFragment : '',
-          codeParams.length > 0 ? options.codeFragment : '',
-        ]);
-
-        return `(${fragments.join(` ${options.join} `)})`;
+        return `(${fragment})`;
       };
 
-      // We use a sub-query to get the ids of locations matched using codes.
-      // This is necessary as adding constraints on location code columns
-      // to the outer query's WHERE causes no results to be returned.
-      // Not super sure why this happens, but probably related to the way
-      // we join the locations table to the data table using structs.
+      const params = matchingLocations.flatMap((location) => [
+        location.code,
+        location.name,
+      ]);
 
       switch (comparator) {
         case 'eq': {
-          return {
-            fragment: createFragment({
-              idFragment: 'locations.id = ?',
-              codeFragment: `locations.id IN (
-                SELECT id 
-                FROM '${tableFile('locations')}'
-                WHERE ${locationCodeCols
-                  .map((col) => `${col} = ?`)
-                  .join(' OR ')}
-              )`,
-              join: 'OR',
-            }),
-            params,
-          };
+          return params.length > 0
+            ? {
+                fragment: createFragment({ comparator: 'IN', join: 'OR' }),
+                params,
+              }
+            : { fragment: 'false' };
         }
         case 'notEq':
-          return {
-            fragment: createFragment({
-              idFragment: 'locations.id != ?',
-              codeFragment: `locations.id NOT IN (
-                SELECT id 
-                FROM '${tableFile('locations')}'
-                WHERE ${locationCodeCols
-                  .map((col) => `${col} = ?`)
-                  .join(' OR ')}
-              )`,
-              join: 'AND',
-            }),
-            params,
-          };
+          return params.length > 0
+            ? {
+                fragment: createFragment({ comparator: 'NOT IN', join: 'AND' }),
+                params,
+              }
+            : { fragment: 'true' };
         case 'in':
           return params.length > 0
             ? {
-                fragment: createFragment({
-                  idFragment: `locations.id IN (${placeholders(idParams)})`,
-                  codeFragment: `locations.id IN (
-                    SELECT id 
-                    FROM '${tableFile('locations')}'
-                    WHERE ${locationCodeCols
-                      .map((col) => `${col} IN (${placeholders(codeValues)})`)
-                      .join(' OR ')}
-                  )`,
-                  join: 'OR',
-                }),
+                fragment: createFragment({ comparator: 'IN', join: 'OR' }),
                 params,
               }
-            : undefined;
+            : { fragment: 'false' };
         case 'notIn':
-          return values.length > 0
+          return params.length > 0
             ? {
-                fragment: createFragment({
-                  idFragment: `locations.id NOT IN (${placeholders(idParams)})`,
-                  codeFragment: `locations.id NOT IN (
-                    SELECT id 
-                    FROM '${tableFile('locations')}'
-                    WHERE ${locationCodeCols
-                      .map((col) => `${col} IN (${placeholders(codeValues)})`)
-                      .join(' OR ')}
-                  )`,
-                  join: 'AND',
-                }),
+                fragment: createFragment({ comparator: 'NOT IN', join: 'AND' }),
                 params,
               }
-            : undefined;
+            : { fragment: 'true' };
       }
     },
   });
@@ -563,57 +535,27 @@ async function getFilterItems(
   );
 }
 
-async function getMatchingLocationIds(
+async function getLocations(
   { db, tableFile }: DataSetQueryState,
-  locationIds: number[]
-): Promise<Set<number>> {
+  locationIds: number[],
+  locationCodes: string[]
+): Promise<LocationRow[]> {
   const ids = compact(locationIds);
-
-  if (!ids.length) {
-    return new Set();
-  }
-
-  const rows = await db.all<{ id: number }>(
-    `
-      SELECT id
-      FROM '${tableFile('locations')}'
-      WHERE id IN (${placeholders(ids)})`,
-    ids
-  );
-
-  return new Set(rows.map((row) => row.id));
-}
-
-async function getMatchingLocationCodes(
-  { db, tableFile }: DataSetQueryState,
-  locationCodes: string[],
-  locationCodeCols: string[]
-): Promise<Set<string>> {
   const codes = compact(locationCodes);
 
-  if (!codes.length) {
-    return new Set();
+  if (!ids.length && !codes.length) {
+    return [];
   }
 
-  const codePlaceholders = indexPlaceholders(codes);
-
-  const rows = await db.all<Dictionary<string>>(
+  return await db.all<LocationRow>(
     `
-      SELECT DISTINCT ${locationCodeCols}
+      SELECT *
       FROM '${tableFile('locations')}'
-      WHERE ${locationCodeCols
-        .map((col) => `${col} IN (${codePlaceholders})`)
-        .join(' OR ')}`,
-    codes
+      WHERE ${compact([
+        ids.length > 0 ? `id IN (${placeholders(ids)})` : '',
+        codes.length > 0 ? `code IN (${placeholders(codes)})` : '',
+      ]).join(' OR ')}
+      `,
+    [...ids, ...codes]
   );
-
-  return rows.reduce<Set<string>>((acc, row) => {
-    locationCodeCols.forEach((col) => {
-      if (row[col]) {
-        acc.add(row[col]);
-      }
-    });
-
-    return acc;
-  }, new Set());
 }

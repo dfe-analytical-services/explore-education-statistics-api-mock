@@ -1,11 +1,13 @@
 import fs from 'fs-extra';
-import { orderBy, partition } from 'lodash';
+import { orderBy, partition, pickBy } from 'lodash';
 import path from 'path';
+import { GeographicLevel } from '../schema';
 import { MetaFileRow } from '../types/metaFile';
 import {
   baseGeographicLevelOrder,
   columnsToGeographicLevel,
   geographicLevelColumns,
+  geographicLevelCsvLabels,
 } from '../utils/locationConstants';
 import Database from '../utils/Database';
 import parseCsv from '../utils/parseCsv';
@@ -161,43 +163,33 @@ async function extractLocations(
   const locationCols = columns.filter(
     (column) => columnsToGeographicLevel[column]
   );
+  const geographicLevels = locationCols.reduce(
+    (acc, column) => acc.add(columnsToGeographicLevel[column]),
+    new Set<GeographicLevel>()
+  );
 
   await db.run('CREATE SEQUENCE locations_seq START 1;');
   await db.run(
     `CREATE TABLE locations(
        id UINTEGER PRIMARY KEY DEFAULT nextval('locations_seq'),
-       geographic_level VARCHAR NOT NULL,
-       ${locationCols.map((col) => `${col} VARCHAR`)}
+       level VARCHAR NOT NULL,
+       code VARCHAR DEFAULT '',
+       name VARCHAR
      );`
   );
 
-  // Have to determine an order so that we can get a relatively stable
-  // ordering of locations (instead of the order they appear in the CSV).
-  const locationColsOrder = orderBy(locationCols, (col) => {
-    const geographicLevel = columnsToGeographicLevel[col];
+  for (const geographicLevel of geographicLevels) {
+    const cols = geographicLevelColumns[geographicLevel];
 
-    const index = baseGeographicLevelOrder.indexOf(geographicLevel);
-    const baseModifier = index > -1 ? index.toString() : '';
-
-    const levelCols = geographicLevelColumns[geographicLevel];
-
-    if (levelCols.code === col) {
-      return `${baseModifier}:1`;
-    }
-
-    if (levelCols.name === col) {
-      return `${baseModifier}:2`;
-    }
-
-    return `${baseModifier}:3`;
-  });
-
-  await db.run(
-    `INSERT INTO locations(geographic_level, ${locationCols})
-        SELECT DISTINCT geographic_level, ${locationCols}
+    await db.run(
+      `INSERT INTO locations(level, code, name)
+        SELECT DISTINCT ? AS level, ${cols.code}, ${cols.name}
         FROM data
-        ORDER BY geographic_level, ${locationColsOrder};`
-  );
+        WHERE data.geographic_level = ? AND ${cols.name} != ''
+        ORDER BY ${cols.name};`,
+      [geographicLevel, geographicLevelCsvLabels[geographicLevel]]
+    );
+  }
 
   console.timeEnd('=> Imported locations meta');
 }
