@@ -101,28 +101,6 @@ export const geographicLevelCsvLabels: Record<GeographicLevel, string> = {
   Ward: 'Ward',
 };
 
-// The only difference with the CSV labels is that we fix the
-// inconsistent labelling for Country and Region.
-export const geographicLevelLabels: Record<GeographicLevel, string> = {
-  Country: 'Country',
-  EnglishDevolvedArea: 'English devolved area',
-  Institution: 'Institution',
-  LocalAuthority: 'Local authority',
-  LocalAuthorityDistrict: 'Local authority district',
-  LocalEnterprisePartnership: 'Local enterprise partnership',
-  MayoralCombinedAuthority: 'Mayoral combined authority',
-  MultiAcademyTrust: 'MAT',
-  OpportunityArea: 'Opportunity area',
-  ParliamentaryConstituency: 'Parliamentary constituency',
-  PlanningArea: 'Planning area',
-  Provider: 'Provider',
-  Region: 'Region',
-  RscRegion: 'RSC region',
-  School: 'School',
-  Sponsor: 'Sponsor',
-  Ward: 'Ward',
-};
-
 export const csvLabelsToGeographicLevels = invert(
   geographicLevelCsvLabels
 ) as Record<string, GeographicLevel>;

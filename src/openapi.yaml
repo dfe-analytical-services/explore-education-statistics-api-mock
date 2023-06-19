@@ -946,6 +946,7 @@ components:
         - filters
         - indicators
         - locations
+        - geographicLevels
         - timePeriods
       properties:
         _links:
@@ -970,6 +971,11 @@ components:
           description: All the locations associated with the data set, grouped by level.
           items:
             $ref: '#/components/schemas/LocationLevelMetaViewModel'
+        geographicLevels:
+          type: array
+          description: All the geographic levels associated with the data set.
+          items:
+            $ref: '#/components/schemas/GeographicLevel'
         timePeriods:
           type: array
           description: All the time periods associated with the data set.
@@ -1346,13 +1352,9 @@ components:
       type: object
       description: A geographic level's locations.
       required:
-        - label
         - level
         - options
       properties:
-        label:
-          type: string
-          description: The human-readable label of the location level.
         level:
           $ref: '#/components/schemas/GeographicLevel'
         options:

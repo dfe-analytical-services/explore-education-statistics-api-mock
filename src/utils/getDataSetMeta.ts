@@ -1,3 +1,4 @@
+import { sortBy } from 'lodash';
 import {
   DataSetMetaViewModel,
   FilterMetaViewModel,
@@ -23,7 +24,10 @@ import {
   createIndicatorIdHasher,
   createLocationIdHasher,
 } from './idHashers';
-import { geographicLevelLabels } from './locationConstants';
+import {
+  baseGeographicLevelOrder,
+  csvLabelsToGeographicLevels,
+} from './locationConstants';
 import parseTimePeriodCode from './parseTimePeriodCode';
 
 export default async function getDataSetMeta(
@@ -36,13 +40,23 @@ export default async function getDataSetMeta(
     `SELECT count(*) as total FROM '${tableFile(dataSetDir, 'data')}';`
   );
 
+  const [locations, geographicLevels, timePeriods, filters, indicators] =
+    await Promise.all([
+      getLocationsMeta(db, dataSetDir),
+      getGeographicLevels(db, dataSetDir),
+      getTimePeriodsMeta(db, dataSetDir),
+      getFiltersMeta(db, dataSetDir),
+      getIndicatorsMeta(db, dataSetDir),
+    ]);
+
   try {
     return {
       totalResults: total,
-      timePeriods: await getTimePeriodsMeta(db, dataSetDir),
-      filters: await getFiltersMeta(db, dataSetDir),
-      indicators: await getIndicatorsMeta(db, dataSetDir),
-      locations: await getLocationsMeta(db, dataSetDir),
+      timePeriods,
+      filters,
+      indicators,
+      geographicLevels,
+      locations,
     };
   } finally {
     db.close();
@@ -67,6 +81,20 @@ async function getTimePeriodsMeta(
       year: timePeriod.year,
     };
   });
+}
+
+async function getGeographicLevels(
+  db: Database,
+  dataSetDir: string
+): Promise<GeographicLevel[]> {
+  const rows = await db.all<{ geographic_level: string }>(
+    `SELECT DISTINCT geographic_level FROM '${tableFile(dataSetDir, 'data')}';`
+  );
+
+  return sortBy(
+    rows.map((row) => csvLabelsToGeographicLevels[row.geographic_level]),
+    (level) => baseGeographicLevelOrder.indexOf(level)
+  );
 }
 
 async function getLocationsMeta(
@@ -104,7 +132,6 @@ async function getLocationsMeta(
     const geographicLevel = level as GeographicLevel;
 
     return {
-      label: geographicLevelLabels[geographicLevel],
       level: geographicLevel,
       options: locations,
     };
