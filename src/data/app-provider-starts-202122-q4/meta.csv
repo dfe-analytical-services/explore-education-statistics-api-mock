@@ -1,0 +1,5 @@
+"col_name","col_type","label","indicator_grouping","indicator_unit","indicator_dp","filter_hint","filter_grouping_column"
+apps_level,Filter,Level,,,,,
+ssa_t1_desc,Filter,Sector subject area (tier 1),,,,,
+starts,Indicator,Starts,,,0,,
+achievements,Indicator,Achievements,,,0,,

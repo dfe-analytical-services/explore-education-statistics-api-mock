@@ -67,6 +67,8 @@ async function runImport() {
     await extractMeta(db, metaFilePath);
 
     await db.run(`EXPORT DATABASE '${outputDir}' (FORMAT PARQUET, CODEC ZSTD)`);
+
+    await fs.copy(metaFilePath, `${outputDir}/meta.csv`);
     await db.run(
       `COPY (SELECT * FROM data) TO '${outputDir}/data.csv.gz' WITH (COMPRESSION gzip)`
     );

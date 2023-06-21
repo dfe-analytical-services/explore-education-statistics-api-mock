@@ -1,0 +1,7 @@
+﻿col_name,col_type,label,indicator_grouping,indicator_unit,indicator_dp,filter_hint,filter_grouping_column
+phase_type_grouping,Filter,School type,,,,Filter by school type,
+characteristic,Filter,Characteristics,,,,Select required groups,characteristic_group
+fsm_eligibility,Filter,FSM Eligibility,,,,Select required groups,
+number_of_pupils,Indicator,Number of pupils,Pupil counts,,0,,
+denominator,Indicator,Total headcount,Pupil counts,,0,,
+percent_of_pupils,Indicator,Percentage,Pupil counts,,1,,
