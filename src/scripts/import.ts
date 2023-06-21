@@ -188,7 +188,7 @@ async function extractLocations(
         SELECT DISTINCT ? AS level, ${cols.code}, ${cols.name}
         FROM data
         WHERE data.geographic_level = ? AND ${cols.name} != ''
-        ORDER BY ${cols.name};`,
+        ORDER BY level, ${cols.code}, ${cols.name};`,
       [geographicLevel, geographicLevelCsvLabels[geographicLevel]]
     );
   }
@@ -228,7 +228,8 @@ async function extractFilters(
         SELECT label, $1, $2, $3, CASE WHEN label = 'Total' THEN TRUE END
         FROM (
             SELECT DISTINCT ${filter.col_name} AS label
-            FROM data ORDER BY ${filter.col_name}
+            FROM data 
+            ORDER BY ${filter.col_name}
         );`,
       [filter.label, filter.col_name, filter.filter_hint]
     );
