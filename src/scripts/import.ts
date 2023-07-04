@@ -70,7 +70,10 @@ async function runImport() {
 
     await fs.copy(metaFilePath, `${outputDir}/meta.csv`);
     await db.run(
-      `COPY (SELECT * FROM data) TO '${outputDir}/data.csv.gz' WITH (COMPRESSION gzip)`
+      `
+      COPY (SELECT * FROM read_csv_auto('${dataFilePath}', ALL_VARCHAR=TRUE)) 
+      TO '${outputDir}/data.csv.gz' WITH (COMPRESSION gzip)
+      `
     );
 
     console.timeEnd(timeLabel);
@@ -88,8 +91,23 @@ async function extractData(db: Database, csvPath: string) {
   console.time(timeLabel);
 
   try {
+    await db.run(`CREATE SEQUENCE data_seq START 1`);
+    await db.run(`CREATE TABLE data(id BIGINT PRIMARY KEY)`);
+
+    const columns = await db.all<{ column_name: string; column_type: string }>(
+      `DESCRIBE SELECT * FROM read_csv_auto('${csvPath}', ALL_VARCHAR=TRUE)`
+    );
+
+    for (const column of columns) {
+      await db.run(
+        `ALTER TABLE data ADD COLUMN "${column.column_name}" VARCHAR`
+      );
+    }
+
     await db.run(
-      `CREATE TABLE data AS SELECT * FROM read_csv_auto('${csvPath}', ALL_VARCHAR=TRUE);`
+      `INSERT INTO data 
+        SELECT nextval('data_seq') AS id, * 
+        FROM read_csv_auto('${csvPath}', ALL_VARCHAR=TRUE)`
     );
 
     console.timeEnd(timeLabel);
