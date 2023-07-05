@@ -5,6 +5,7 @@ import 'express-async-errors';
 import * as OpenApiValidator from 'express-openapi-validator';
 import { BadRequest } from 'express-openapi-validator/dist/framework/types';
 import { omit, pick } from 'lodash';
+import morgan from 'morgan';
 import path from 'path';
 import { InternalServerError, ValidationError } from './errors';
 import ApiError from './errors/ApiError';
@@ -41,6 +42,7 @@ app.set('query parser', false);
 
 // Middleware
 
+app.use(morgan('dev'));
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.text());
 app.use(bodyParser.json());
@@ -224,9 +226,7 @@ app.get('/api/v1/data-sets/:dataSetId/query', (req, res) => {
 });
 
 app.post('/api/v1/data-sets/:dataSetId/query', async (req, res) => {
-  console.time('Processing time');
   await queryDataSet(req.body, req, res);
-  console.timeEnd('Processing time');
 });
 
 app.get('/api/v1/data-sets/:dataSetId/file', async (req, res) => {
