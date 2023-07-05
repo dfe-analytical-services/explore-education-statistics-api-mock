@@ -333,8 +333,6 @@ async function createLocationsParser(
         values.flatMap((value) => locationsByRawId[value] ?? [])
       );
 
-      console.log(matchingLocations);
-
       if (matchingLocations.length < values.length) {
         state.appendWarning(
           path,
