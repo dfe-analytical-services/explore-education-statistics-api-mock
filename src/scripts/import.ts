@@ -1,10 +1,9 @@
 import fs from 'fs-extra';
-import { orderBy, partition, pickBy } from 'lodash';
+import { orderBy, partition } from 'lodash';
 import path from 'path';
 import { GeographicLevel } from '../schema';
 import { MetaFileRow } from '../types/metaFile';
 import {
-  baseGeographicLevelOrder,
   columnsToGeographicLevel,
   geographicLevelColumns,
   geographicLevelCsvLabels,

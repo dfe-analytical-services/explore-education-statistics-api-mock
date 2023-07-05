@@ -53,7 +53,7 @@ app.use(
     apiSpec,
     validateApiSpec: true,
     validateFormats: false,
-    validateResponses: true,
+    validateResponses: process.env.NODE_ENV === 'development',
     ignorePaths: /\/docs/,
   })
 );
