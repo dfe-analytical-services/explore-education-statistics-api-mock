@@ -206,13 +206,14 @@ async function runQuery<TRow extends DataRow = DataRow>(
     return `${alias}.id AS ${alias}_id`;
   });
 
-  // We essentially split this query into two parts:
-  // 1. The inner main query which is offset paginated
-  // 2. The outer query which uses the results from the inner query
+  // We essentially split this query into three parts which are run in sequence:
+  // 1. The main query which is offset paginated and gathers the result ids (i.e. a 'deferred' join)
+  // 2. A query to select all the relevant metadata (excluding filters)
+  // 3. A query to append the filter metadata separately
   //
-  // We do this as we generate joins to the `filters` table on each filter column
-  // for the filter item IDs. This can be very expensive if there are lots of them,
-  // so by only doing this on the paginated results, we can limit this overhead
+  // We append the filter metadata separately we generate joins to the `filters` table on
+  // each filter column for the filter item IDs. This can be very expensive if there are lots
+  // of them, so by only doing this on the paginated results, we can limit this overhead
   // substantially and the query performs a lot better.
   //
   // We could alternatively fetch all the filter items into memory and pair these
@@ -220,27 +221,37 @@ async function runQuery<TRow extends DataRow = DataRow>(
   // some other approaches too, but I just settled on the current implementation
   // for now as it seemed to provide adequate response times (< 1s).
   const resultsQuery = `
-      WITH data AS (
-          SELECT data.time_period,
-                 data.time_identifier,
-                 data.geographic_level,
-                 ${[
-                   ...locationCols.map((col) => `data.${col}`),
-                   ...locationIdCols,
-                   ...filterCols.map((col) => `data.${col} AS ${col}`),
-                   ...indicators.map((i) => `data."${i.name}"`),
-                 ]}
-          FROM '${tableFile('data')}' AS data
-          JOIN '${tableFile('time_periods')}' AS time_periods
-            ON (time_periods.year, time_periods.identifier) 
-                = (data.time_period, data.time_identifier)
-          ${getLocationJoins(state, geographicLevels)}                
-          ${where.fragment ? `WHERE ${where.fragment}` : ''}
-          ORDER BY ${getOrderings(query, state, filterCols, geographicLevels)}
-          LIMIT ?
-          OFFSET ? 
+      WITH
+          data_ids AS (
+            SELECT data.id
+            FROM '${tableFile('data')}' AS data
+            JOIN '${tableFile('time_periods')}' AS time_periods
+              ON (time_periods.year, time_periods.identifier)
+              = (data.time_period, data.time_identifier)
+            ${where.fragment ? `WHERE ${where.fragment}` : ''}
+            ORDER BY ${getOrderings(query, state, filterCols, geographicLevels)}
+            LIMIT ?
+            OFFSET ? 
+          ),
+          data AS (
+            SELECT data.time_period,
+                   data.time_identifier,
+                   data.geographic_level,
+                   ${[
+                     ...locationCols.map((col) => `data.${col}`),
+                     ...locationIdCols,
+                     ...filterCols.map((col) => `data.${col} AS ${col}`),
+                     ...indicators.map((i) => `data."${i.name}"`),
+                   ]}
+            FROM '${tableFile('data')}' AS data
+            JOIN data_ids ON data_ids.id = data.id
+            JOIN '${tableFile('time_periods')}' AS time_periods
+              ON (time_periods.year, time_periods.identifier) 
+                  = (data.time_period, data.time_identifier)
+            ${getLocationJoins(state, geographicLevels)}
       )
-      SELECT data.* REPLACE(
+      SELECT data.* 
+      REPLACE(
         ${filterCols.map((col) => {
           if (formatCsv) {
             return `${col}.label AS ${col}`;
@@ -260,7 +271,7 @@ async function runQuery<TRow extends DataRow = DataRow>(
                 ON ${filter}.label = data.${filter} 
                 AND ${filter}.group_name = '${filter.slice(1, -1)}'`
         )
-        .join('\n')}
+        .join(' ')}
   `;
 
   // Tried cursor/keyset pagination, but it's probably too difficult to implement.

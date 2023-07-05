@@ -328,7 +328,7 @@ async function createLocationsParser(
 
   return createParser<DataSetQueryCriteriaLocations, string>({
     state,
-    parser: (comparator, values, { path, criteria }) => {
+    parser: (comparator, values, { path }) => {
       const matchingLocations = compact(
         values.flatMap((value) => locationsByRawId[value] ?? [])
       );
