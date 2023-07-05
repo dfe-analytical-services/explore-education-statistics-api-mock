@@ -36,14 +36,14 @@ export default class Database {
     params: (string | number)[] = [],
     options?: QueryOptions
   ): Promise<void> {
-    if (options?.debug) {
+    if (this.canDebug(options)) {
       console.time(timerLabel);
       this.logQuery(query, params, options.debug);
     }
 
     await new Promise((resolve, reject) => {
       this.db.run(query, ...params, ((err, result) => {
-        if (options?.debug) {
+        if (this.canDebug(options)) {
           console.timeEnd(timerLabel);
         }
 
@@ -64,14 +64,14 @@ export default class Database {
     params: any[] = [],
     options?: QueryOptions
   ): Promise<TResult[]> {
-    if (options?.debug) {
+    if (this.canDebug(options)) {
       console.time(timerLabel);
       this.logQuery(query, params, options.debug);
     }
 
     return await new Promise((resolve, reject) => {
       this.db.all(query, ...params, ((err, result) => {
-        if (options?.debug) {
+        if (this.canDebug(options)) {
           console.timeEnd(timerLabel);
         }
 
@@ -92,14 +92,14 @@ export default class Database {
     params: any[] = [],
     options?: QueryOptions
   ): Promise<TResult> {
-    if (options?.debug) {
+    if (this.canDebug(options)) {
       console.time(timerLabel);
       this.logQuery(query, params, options.debug);
     }
 
     return await new Promise((resolve, reject) => {
       this.db.all(query, ...params, ((err, result) => {
-        if (options?.debug) {
+        if (this.canDebug(options)) {
           console.timeEnd(timerLabel);
         }
 
@@ -120,7 +120,7 @@ export default class Database {
     params: any[] = [],
     options?: QueryOptions
   ): StreamResult<TResult> {
-    if (options?.debug) {
+    if (this.canDebug(options)) {
       this.logQuery(query, params, options.debug);
     }
 
@@ -143,5 +143,11 @@ export default class Database {
       )
     );
     console.log(params);
+  }
+
+  private canDebug(
+    options?: QueryOptions
+  ): options is QueryOptions & { debug: true | DebugOptions } {
+    return !!options?.debug && process.env.NODE_ENV === 'development';
   }
 }
