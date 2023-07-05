@@ -20,7 +20,7 @@ import {
   DataSetVersionViewModel,
   PagedDataSetVersionsViewModel,
 } from './schema';
-import createPaginationLinks from './utils/createPaginationLinks';
+import { createPaginationLinks } from './utils/createPaginationLinks';
 import createSelfLink from './utils/createSelfLink';
 import getDataSetDetails from './utils/getDataSetDetails';
 import { dataSetDirs } from './utils/getDataSetDir';
@@ -29,7 +29,7 @@ import {
   getDataSetZipFileStream,
 } from './utils/getDataSetFile';
 import getDataSetMeta from './utils/getDataSetMeta';
-import parsePaginationParams from './utils/parsePaginationParams';
+import { parsePaginationParams } from './utils/parsePaginationParams';
 import { addHostUrlToLinks } from './utils/responseUtils';
 
 const apiSpec = path.resolve(__dirname, './openapi.yaml');

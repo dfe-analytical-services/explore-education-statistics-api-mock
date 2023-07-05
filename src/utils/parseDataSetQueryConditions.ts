@@ -24,7 +24,7 @@ import {
 import { placeholders } from './queryUtils';
 import { timePeriodCodeIdentifiers } from './timePeriodConstants';
 
-interface QueryFragmentParams {
+export interface QueryFragmentParams {
   fragment: string;
   params: any[];
 }

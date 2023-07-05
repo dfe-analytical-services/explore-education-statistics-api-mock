@@ -1,11 +1,12 @@
 import { compact, keyBy, mapValues, snakeCase, uniq } from 'lodash';
+import NodeCache from 'node-cache';
 import Papa from 'papaparse';
 import { ValidationError } from '../errors';
 import {
   DataSetQuery,
   DataSetResultsViewModel,
   GeographicLevel,
-  PagingViewModel,
+  PagingCursorViewModel,
 } from '../schema';
 import { DataRow, IndicatorRow } from '../types/dbSchemas';
 import { arrayErrors, genericErrors } from '../validations/errors';
@@ -19,16 +20,24 @@ import {
   csvLabelsToGeographicLevels,
   geographicLevelColumns,
 } from './locationConstants';
-import parseDataSetQueryConditions from './parseDataSetQueryConditions';
+import parseDataSetQueryConditions, {
+  QueryFragmentParams,
+} from './parseDataSetQueryConditions';
 import parseTimePeriodCode from './parseTimePeriodCode';
 import { indexPlaceholders } from './queryUtils';
 
 const DEBUG_DELIMITER = ' :: ';
 
+const cursorCache = new NodeCache();
+
 export async function runDataSetQuery(
   dataSetId: string,
   query: DataSetQuery,
-  { debug, page, pageSize }: { debug?: boolean; page: number; pageSize: number }
+  {
+    debug,
+    cursor,
+    pageSize,
+  }: { debug?: boolean; cursor?: string; pageSize: number }
 ): Promise<Omit<DataSetResultsViewModel, '_links'>> {
   const dataSetDir = getDataSetDir(dataSetId);
   const state = new DataSetQueryState(dataSetDir);
@@ -36,7 +45,7 @@ export async function runDataSetQuery(
   try {
     const { results, total, meta } = await runQuery<DataRow>(
       state,
-      { ...query, page, pageSize },
+      { ...query, cursor, pageSize },
       {
         debug,
       }
@@ -66,7 +75,7 @@ export async function runDataSetQuery(
 
     return {
       paging: {
-        page,
+        cursor,
         pageSize,
         totalResults: total,
         totalPages: pageSize > 0 ? Math.ceil(total / pageSize) : pageSize,
@@ -117,13 +126,13 @@ export async function runDataSetQuery(
 
 interface CsvReturn {
   csv: string;
-  paging: PagingViewModel;
+  paging: PagingCursorViewModel;
 }
 
 export async function runDataSetQueryToCsv(
   dataSetId: string,
   query: DataSetQuery,
-  { page, pageSize }: { page: number; pageSize: number }
+  { cursor, pageSize }: { cursor?: string; pageSize: number }
 ): Promise<CsvReturn> {
   const dataSetDir = getDataSetDir(dataSetId);
   const state = new DataSetQueryState(dataSetDir);
@@ -131,14 +140,15 @@ export async function runDataSetQueryToCsv(
   try {
     const { results, total } = await runQuery<DataRow>(
       state,
-      { ...query, page, pageSize },
+      { ...query, cursor, pageSize },
       { formatCsv: true }
     );
 
     return {
       csv: Papa.unparse(results),
       paging: {
-        page,
+        cursor,
+        // nextCursor,
         pageSize,
         totalResults: total,
         totalPages: Math.ceil(total / pageSize),
@@ -162,12 +172,12 @@ interface RunQueryReturn<TRow extends DataRow = DataRow> {
 
 async function runQuery<TRow extends DataRow = DataRow>(
   state: DataSetQueryState,
-  query: DataSetQuery & { page: number; pageSize: number },
+  query: DataSetQuery & { cursor?: string; pageSize: number },
   options: RunQueryOptions = {}
 ): Promise<RunQueryReturn<TRow>> {
   const { db, tableFile } = state;
   const { debug, formatCsv } = options;
-  const { page, pageSize } = query;
+  const { cursor, pageSize } = query;
 
   const indicatorIds = parseIdLikeStrings(
     query.indicators ?? [],
@@ -206,6 +216,8 @@ async function runQuery<TRow extends DataRow = DataRow>(
     return `${alias}.id AS ${alias}_id`;
   });
 
+  const orderings = getOrderings(query, state, filterCols, geographicLevels);
+
   // We essentially split this query into two parts:
   // 1. The inner main query which is offset paginated
   // 2. The outer query which uses the results from the inner query
@@ -234,11 +246,10 @@ async function runQuery<TRow extends DataRow = DataRow>(
           JOIN '${tableFile('time_periods')}' AS time_periods
             ON (time_periods.year, time_periods.identifier) 
                 = (data.time_period, data.time_identifier)
-          ${getLocationJoins(state, geographicLevels)}                
-          ${where.fragment ? `WHERE ${where.fragment}` : ''}
-          ORDER BY ${getOrderings(query, state, filterCols, geographicLevels)}
+          ${getLocationJoins(state, geographicLevels)}
+          ${getWhereClause(where, orderings, cursor)}
+          ORDER BY ${orderings}
           LIMIT ?
-          OFFSET ? 
       )
       SELECT data.* REPLACE(
         ${filterCols.map((col) => {
@@ -263,20 +274,6 @@ async function runQuery<TRow extends DataRow = DataRow>(
         .join('\n')}
   `;
 
-  // Tried cursor/keyset pagination, but it's probably too difficult to implement.
-  // Might need to revisit this in the future if performance is an issue.
-  // - Ordering is a real headache as we'd need to perform struct comparisons across
-  //   non-indicator columns. This could potentially be even worse in terms of performance!
-  // - We would most likely need to create new columns for row ids and row structs (of
-  //   non-indicator columns). This would blow up the size of the Parquet file.
-  // - The WHERE clause we would need to generate would be actually horrendous, especially
-  //   if we want to allow users to specify custom sorting.
-  // - The cursor token we'd generate for clients could potentially become big as
-  //   it'd rely on a bunch of columns being combined.
-  // - If we scale this horizontally, offset pagination is probably fine even if it's
-  //   not as fast on paper. Cursor pagination may be a premature optimisation.
-  const pageOffset = (page - 1) * pageSize;
-
   // Bail before executing any queries if there
   // have been any errors that have accumulated.
   if (state.hasErrors()) {
@@ -287,7 +284,7 @@ async function runQuery<TRow extends DataRow = DataRow>(
 
   const [{ total }, results] = await Promise.all([
     db.first<{ total: number }>(totalQuery, where.params),
-    db.all<TRow>(resultsQuery, [...where.params, pageSize, pageOffset], {
+    db.all<TRow>(resultsQuery, [...where.params, pageSize], {
       debug: true,
     }),
   ]);
@@ -315,15 +312,41 @@ function getLocationJoins(
     .join('\n');
 }
 
+function getWhereClause(
+  where: QueryFragmentParams,
+  orderings: string[],
+  cursor?: string
+): string {
+  if (!orderings.length || !cursor) {
+    return where.fragment ? `WHERE ${where.fragment}` : '';
+  }
+
+  const cursorFragment = orderings
+    .map((ordering) => {
+      const index = ordering.lastIndexOf(' ');
+      const column = ordering.slice(0, index);
+      const direction = ordering.slice(index);
+
+      return direction === 'ASC' ? `${column} > ?` : `${column} < ?`;
+    })
+    .join(' AND ');
+
+  if (!cursorFragment && !where.fragment) {
+    return '';
+  }
+
+  return `WHERE ${where.fragment} AND (${cursorFragment})`;
+}
+
 function getOrderings(
   query: DataSetQuery,
   state: DataSetQueryState,
   filterCols: string[],
   geographicLevels: Set<GeographicLevel>
 ): string[] {
-  // Default to ordering by descending time periods
+  // Use default orderings if no sorts
   if (!query.sort) {
-    return ['time_periods.ordering DESC'];
+    return ['time_periods.ordering DESC', 'data.id ASC'];
   }
 
   if (!query.sort.length) {
@@ -357,6 +380,10 @@ function getOrderings(
 
     invalidSorts.add(sort.name);
   });
+
+  // Always finish by ordering on ID to provide
+  // consistent ordering in tie-break situations.
+  sorts.push('data.id ASC');
 
   if (invalidSorts.size > 0) {
     throw ValidationError.atPath('sort', {

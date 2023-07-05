@@ -222,14 +222,13 @@ paths:
           schema:
             type: boolean
             default: false
-        - name: page
+        - name: cursor
           in: query
-          description: The page of results to fetch.
+          description: |-
+            The cursor to fetch paginated results from. A cursor is a pointer to a position in the data set.
           required: false
           schema:
-            type: number
-            format: int32
-            minimum: 1
+            type: string
         - name: pageSize
           in: query
           description: The maximum number of results per page.
@@ -299,14 +298,13 @@ paths:
           schema:
             type: boolean
             default: false
-        - name: page
+        - name: cursor
           in: query
-          description: The page of results to fetch.
+          description: |- 
+            The cursor to fetch paginated results from. A cursor points to a position in the data set.
           required: false
           schema:
-            type: number
-            format: int32
-            minimum: 1
+            type: string
         - name: pageSize
           in: query
           description: The maximum number of results per page.
@@ -885,7 +883,7 @@ components:
           items:
             $ref: '#/components/schemas/FootnoteViewModel'
         paging:
-          $ref: '#/components/schemas/PagingViewModel'
+          $ref: '#/components/schemas/PagingCursorViewModel'
         results:
           type: array
           description: The results of the data set query.
@@ -1416,6 +1414,43 @@ components:
             $ref: '#/components/schemas/PublicationSummaryViewModel'
         _links:
           $ref: '#/components/schemas/LinksViewModel'
+    PagingCursorViewModel:
+      type: object
+      description: |-
+        Provides metadata for use in cursor pagination. 
+        
+        Cursor pagination differs from traditional pagination in that pages are bounded by 'cursors' 
+        instead of page numbers. A cursor is a pointer to a position in the data set and can change
+        based on the order of the results.
+        
+        Unfortunately, cursor pagination does not allow skipping to a specific page.
+      additionalProperties: false
+      required:
+        - pageSize
+        - totalResults
+        - totalPages
+      properties:
+        cursor:
+          type: string
+          description: The cursor for the current page of results.
+        nextCursor:
+          type: string
+          description: The cursor for the next page of results.
+        pageSize:
+          type: number
+          description: The maximum number of results per page.
+          format: int32
+          minimum: 0
+        totalResults:
+          type: number
+          description: The total number of results across all pages.
+          format: int32
+          minimum: 0
+        totalPages:
+          type: number
+          description: The total number of pages.
+          format: int32
+          minimum: 0
     PagingViewModel:
       type: object
       description: Provides metadata for use in pagination.

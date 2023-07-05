@@ -3,10 +3,10 @@ import { mapValues } from 'lodash';
 import NotFoundError from '../errors/NotFoundError';
 import { allDataSetVersions } from '../mocks/dataSetVersions';
 import { DataSetQuery } from '../schema';
-import createPaginationLinks from '../utils/createPaginationLinks';
+import { createCursorPaginationLinks } from '../utils/createPaginationLinks';
 import createSelfLink from '../utils/createSelfLink';
 import { dataSetDirs } from '../utils/getDataSetDir';
-import parsePaginationParams from '../utils/parsePaginationParams';
+import { parseCursorPaginationParams } from '../utils/parsePaginationParams';
 import { addHostUrlToLinks } from '../utils/responseUtils';
 import {
   runDataSetQuery,
@@ -34,7 +34,7 @@ export async function queryDataSet(
     throw new NotFoundError();
   }
 
-  const { page = 1, pageSize = 500 } = parsePaginationParams(req);
+  const { cursor, pageSize = 500 } = parseCursorPaginationParams(req);
 
   const acceptsCsv = req.accepts('application/json', 'text/csv') === 'text/csv';
 
@@ -43,31 +43,31 @@ export async function queryDataSet(
       csv,
       paging: { totalPages, totalResults },
     } = await runDataSetQueryToCsv(dataSetId, query, {
-      page,
+      cursor,
       pageSize,
     });
 
     const links = mapValues(
-      createPaginationLinks(req, {
-        page,
-        totalPages,
-      }),
+      createCursorPaginationLinks(req, {}),
       (link) => link.href
     );
 
-    return res
+    res
       .status(200)
       .contentType('text/csv')
-      .setHeader('Page', page)
       .setHeader('Page-Size', pageSize)
       .setHeader('Total-Results', totalResults)
-      .setHeader('Total-Pages', totalPages)
-      .links(links)
-      .send(csv);
+      .setHeader('Total-Pages', totalPages);
+
+    if (cursor) {
+      res.setHeader('Cursor', cursor);
+    }
+
+    res.links(links).send(csv);
   }
 
   const response = await runDataSetQuery(dataSetId, query, {
-    page,
+    cursor,
     pageSize,
     debug: !!req.query.debug,
   });
@@ -75,10 +75,7 @@ export async function queryDataSet(
   return res.status(200).send({
     _links: {
       self: createSelfLink(req),
-      ...createPaginationLinks(req, {
-        page,
-        totalPages: response.paging.totalPages,
-      }),
+      ...createCursorPaginationLinks(req, {}),
       ...addHostUrlToLinks(
         {
           file: {

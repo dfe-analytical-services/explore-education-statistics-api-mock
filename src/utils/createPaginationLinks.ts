@@ -1,10 +1,10 @@
 import { Request } from 'express';
 import qs from 'qs';
 import { LinksViewModel } from '../schema';
-import parsePaginationParams from './parsePaginationParams';
+import { parsePaginationParams } from './parsePaginationParams';
 import { getFullRequestPath } from './requestUtils';
 
-export default function createPaginationLinks(
+export function createPaginationLinks(
   req: Request,
   paging: {
     page: number;
@@ -33,6 +33,32 @@ export default function createPaginationLinks(
       href: `${getFullRequestPath(req)}?${qs.stringify({
         ...req.query,
         page: page + 1,
+        pageSize,
+      })}`,
+      method,
+    };
+  }
+
+  return links;
+}
+
+export function createCursorPaginationLinks(
+  req: Request,
+  paging: {
+    nextCursor?: string;
+  }
+): LinksViewModel {
+  const { nextCursor } = paging;
+  const { pageSize } = parsePaginationParams(req);
+
+  const links: LinksViewModel = {};
+  const method = req.method !== 'GET' ? req.method : undefined;
+
+  if (nextCursor) {
+    links.next = {
+      href: `${getFullRequestPath(req)}?${qs.stringify({
+        ...req.query,
+        nextCursor,
         pageSize,
       })}`,
       method,

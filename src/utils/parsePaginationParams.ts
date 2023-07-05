@@ -1,6 +1,6 @@
 import { Request } from 'express';
 
-export default function parsePaginationParams(req: Request): {
+export function parsePaginationParams(req: Request): {
   page?: number;
   pageSize?: number;
 } {
@@ -24,6 +24,31 @@ export default function parsePaginationParams(req: Request): {
 
   return {
     page,
+    pageSize,
+  };
+}
+
+export function parseCursorPaginationParams(req: Request): {
+  cursor?: string;
+  pageSize?: number;
+} {
+  const { query } = req;
+  let cursor: string | undefined;
+  let pageSize: number | undefined;
+
+  if (typeof query.cursor === 'string') {
+    cursor = query.cursor;
+  }
+
+  if (
+    typeof query.pageSize === 'number' ||
+    (typeof query.pageSize === 'string' && isInt(query.pageSize))
+  ) {
+    pageSize = Number(query.pageSize);
+  }
+
+  return {
+    cursor,
     pageSize,
   };
 }
