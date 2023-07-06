@@ -796,7 +796,7 @@ components:
           type: string
           description: |-
             The name of the field to sort. This can be `TimePeriod`, a geographic level e.g. `Country` or a filter.
-        order:
+        direction:
           type: string
           description: The direction that the field should be ordered. Defaults to ascending if none is set.
           default: Asc

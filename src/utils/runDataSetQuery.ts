@@ -348,7 +348,7 @@ function getOrderings(
   const invalidSorts = new Set<string>();
 
   query.sort.forEach((sort) => {
-    const direction = sort.order === 'Desc' ? 'DESC' : 'ASC';
+    const direction = sort.direction === 'Desc' ? 'DESC' : 'ASC';
 
     if (sort.name === 'TimePeriod') {
       sorts.push(`time_periods.ordering ${direction}`);
