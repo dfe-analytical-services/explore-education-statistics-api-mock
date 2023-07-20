@@ -33,6 +33,8 @@ import getDataSetMeta from './utils/getDataSetMeta';
 import parsePaginationParams from './utils/parsePaginationParams';
 import { addHostUrlToLinks } from './utils/responseUtils';
 
+process.chdir(__dirname);
+
 const apiSpec = path.resolve(__dirname, './openapi.yaml');
 
 const app = express();
