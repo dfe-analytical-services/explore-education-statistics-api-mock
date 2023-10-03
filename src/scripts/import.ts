@@ -1,5 +1,5 @@
 import fs from 'fs-extra';
-import { orderBy, partition } from 'lodash';
+import { orderBy, partition, trimEnd } from 'lodash';
 import path from 'path';
 import { GeographicLevel } from '../schema';
 import { MetaFileRow } from '../types/metaFile';
@@ -82,7 +82,7 @@ async function runImport() {
     await db.run(
       `
       COPY (SELECT * FROM read_csv_auto('${dataFilePath}', ALL_VARCHAR=TRUE)) 
-      TO '${outputDir}/data.csv.gz' WITH (COMPRESSION gzip)
+      TO '${outputDir}/data.csv.gz' WITH (HEADER, COMPRESSION gzip)
       `,
     );
 
