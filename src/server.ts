@@ -11,7 +11,6 @@ import { InternalServerError, ValidationError } from './errors';
 import ApiError from './errors/ApiError';
 import NotFoundError from './errors/NotFoundError';
 import { queryDataSet } from './handlers/queryDataSet';
-import queryParser from './middlewares/queryParser';
 import { allDataSets } from './mocks/dataSets';
 import { allDataSetVersions } from './mocks/dataSetVersions';
 import { allPublications } from './mocks/publications';
@@ -31,6 +30,7 @@ import {
 } from './utils/getDataSetFile';
 import getDataSetMeta from './utils/getDataSetMeta';
 import parsePaginationParams from './utils/parsePaginationParams';
+import parseQueryString from './utils/parseQueryString';
 import { addHostUrlToLinks } from './utils/responseUtils';
 
 process.chdir(__dirname);
@@ -40,7 +40,7 @@ const apiSpec = path.resolve(__dirname, './openapi.yaml');
 const app = express();
 
 app.set('trust proxy', 2);
-app.set('query parser', false);
+app.set('query parser', parseQueryString);
 
 // Middleware
 
@@ -49,7 +49,6 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.text());
 app.use(bodyParser.json());
 app.use(compression());
-app.use(queryParser());
 app.use(
   OpenApiValidator.middleware({
     apiSpec,
