@@ -16,12 +16,23 @@ const dataImportsDir = path.resolve(projectRoot, 'data-imports');
 const dataOutputDir = path.resolve(projectRoot, 'src/data');
 
 async function runImport() {
+  const targetFiles = process.argv.slice(2);
+
   await fs.ensureDir(dataOutputDir);
   await fs.ensureDir(dataImportsDir);
 
-  const files = (await fs.readdir(dataImportsDir)).filter((file) =>
-    file.endsWith('.csv'),
-  );
+  const files = (await fs.readdir(dataImportsDir)).filter((file) => {
+    if (!file.endsWith('.csv')) {
+      return false;
+    }
+
+    if (targetFiles.length > 0) {
+      const trimmedFile = file.replace(/(\.meta\.csv|\.csv)$/, '');
+      return targetFiles.some((target) => trimmedFile === target);
+    }
+
+    return true;
+  });
 
   if (!files.length) {
     throw new Error(
