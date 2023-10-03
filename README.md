@@ -7,7 +7,7 @@ This is a mock implementation of the upcoming public API for the Explore Educati
 1. Install Node.js v18. You can use NVM to do this.
 2. Run `npm ci` from the project root.
 3. Run `npm run schema` to generate API schema types.
-4. Run `npm start` to start the dev server.
+4. Run `npm run dev:server` to start the dev server.
 
 ## Overview
 
@@ -51,8 +51,8 @@ directly into App Services using path mappings.
 
 - `npm run schema` - generates schema types from the OpenAPI specification
 - `npm run build` - builds the production server
-- `npm start` - starts the dev server
-- `npm run start:prod` - starts the production server (needs `npm run build` to be ran first)
+- `npm run dev:server` - starts the dev server
+- `npm run start:server` - starts the production server (needs `npm run build` to be ran first)
 - `npm run import` - imports data sets from the `data-imports` directory
 
 ## Importing new data sets
@@ -89,11 +89,8 @@ New data sets can be imported by:
      id: 'your-uuid',
      title: 'Your publication',
    });
-   
-   export const allPublications = [
-     someOtherPublication,
-     yourPublication,
-   ];
+
+   export const allPublications = [someOtherPublication, yourPublication];
    ```
 
 4. Manually add data set details to `src/mocks/dataSets.ts` e.g.
@@ -101,7 +98,7 @@ New data sets can be imported by:
    ```ts
    // src/mocks/dataSets.ts
    import { yourPublication } from './publications';
-   
+
    export const yourDataSet = createDataSet({
      id: 'your-uuid',
      content: '<p>Your content.</p>',
@@ -111,11 +108,11 @@ New data sets can be imported by:
        start: '2015/16',
        end: '2021/22',
      },
-     publication: yourPublication
+     publication: yourPublication,
    });
 
    export const yourPublicationDataSets = [yourDataSet];
-   
+
    export const allDataSets = [
      ...someOtherDataSets,
      ...yourPublicationDataSets,
@@ -132,4 +129,3 @@ New data sets can be imported by:
      ...
    };
    ```
-

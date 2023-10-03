@@ -10,8 +10,9 @@
     "minify": {
       "compress": false,
       "mangle": false
-    }
+    },
   },
+  "sourceMaps": true,
   "module": {
     "type": "commonjs"
   }
