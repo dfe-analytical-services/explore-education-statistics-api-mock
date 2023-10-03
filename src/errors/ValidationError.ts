@@ -32,12 +32,12 @@ export default class ValidationError extends ApiError {
 
   public static fromBadRequest(
     error: BadRequest,
-    req: Request
+    req: Request,
   ): ValidationError {
     return new ValidationError({
       errors: normalizeOpenApiValidationErrors(
         error.errors,
-        req as OpenApiRequest
+        req as OpenApiRequest,
       ),
     });
   }
@@ -53,11 +53,11 @@ export default class ValidationError extends ApiError {
 
 function normalizeOpenApiValidationErrors(
   errors: unknown[],
-  req: OpenApiRequest
+  req: OpenApiRequest,
 ): ErrorDictionary {
   const uniqueErrors = uniqWith(
     errors.filter(isOpenApiValidationError),
-    isEqual
+    isEqual,
   );
 
   const unsortedErrors = uniqueErrors.reduce<ErrorDictionary>((acc, error) => {
@@ -100,7 +100,7 @@ function normalizeOpenApiValidationErrors(
 
 function createErrorViewModel(
   error: OpenApiValidationError,
-  allErrors: OpenApiValidationError[]
+  allErrors: OpenApiValidationError[],
 ): ErrorViewModel | undefined {
   const code =
     error.errorCode?.replace('.openapi.validation', '') ??
@@ -151,10 +151,10 @@ function toJsonPath(path: string[]): string {
 
 function hasChildPathError(
   error: OpenApiValidationError,
-  allErrors: OpenApiValidationError[]
+  allErrors: OpenApiValidationError[],
 ): boolean {
   return allErrors.some(
-    (err) => err.path !== error.path && err.path.startsWith(error.path)
+    (err) => err.path !== error.path && err.path.startsWith(error.path),
   );
 }
 

@@ -20,7 +20,7 @@ export class IdHasher {
   constructor(
     salt: string,
     encodedIdCache: NodeCache,
-    decodedIdCache: NodeCache
+    decodedIdCache: NodeCache,
   ) {
     this.encodedIdCache = encodedIdCache;
     this.decodedIdCache = decodedIdCache;
@@ -65,7 +65,7 @@ export function createLocationIdHasher(dataSetDir: string): IdHasher {
   return new IdHasher(
     `${path.basename(dataSetDir)}/locations`,
     locationEncodedIdCache,
-    locationDecodedIdCache
+    locationDecodedIdCache,
   );
 }
 
@@ -73,7 +73,7 @@ export function createFilterIdHasher(dataSetDir: string): IdHasher {
   return new IdHasher(
     `${path.basename(dataSetDir)}/filters`,
     filterEncodedIdCache,
-    filterDecodedIdCache
+    filterDecodedIdCache,
   );
 }
 
@@ -81,6 +81,6 @@ export function createIndicatorIdHasher(dataSetDir: string): IdHasher {
   return new IdHasher(
     `${path.basename(dataSetDir)}/indicators`,
     indicatorEncodedIdCache,
-    indicatorDecodedIdCache
+    indicatorDecodedIdCache,
   );
 }

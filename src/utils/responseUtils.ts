@@ -5,7 +5,7 @@ import { getHostUrl } from './requestUtils';
 
 export function addHostUrlToLinks(
   links: LinksViewModel,
-  req: Request
+  req: Request,
 ): LinksViewModel {
   const hostUrl = getHostUrl(req);
 

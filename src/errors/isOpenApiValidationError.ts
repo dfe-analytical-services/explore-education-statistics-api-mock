@@ -7,7 +7,7 @@ export interface OpenApiValidationError {
 }
 
 export default function isOpenApiValidationError(
-  value: unknown
+  value: unknown,
 ): value is OpenApiValidationError {
   return (
     isObject(value) &&

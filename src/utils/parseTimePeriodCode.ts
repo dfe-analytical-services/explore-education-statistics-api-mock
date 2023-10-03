@@ -3,11 +3,11 @@ import { TimePeriodCode } from '../schema';
 import { timePeriodCodeIdentifiers } from './timePeriodConstants';
 
 const identifierCodes = invert(
-  timePeriodCodeIdentifiers
+  timePeriodCodeIdentifiers,
 ) as Dictionary<TimePeriodCode>;
 
 export default function parseTimePeriodCode(
-  identifier: string
+  identifier: string,
 ): TimePeriodCode {
   const timePeriodCode = identifierCodes[identifier];
 

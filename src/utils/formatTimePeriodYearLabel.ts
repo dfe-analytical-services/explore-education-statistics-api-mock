@@ -2,7 +2,7 @@ import { TimePeriodCode } from '../schema';
 
 export default function formatTimePeriodYearLabel(
   code: TimePeriodCode,
-  year: number
+  year: number,
 ): string {
   const fourDigitYear = year.toString().slice(0, 4);
   const twoDigitYear = fourDigitYear.slice(2);

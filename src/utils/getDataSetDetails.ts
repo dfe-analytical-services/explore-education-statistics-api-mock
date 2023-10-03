@@ -4,7 +4,7 @@ import { tableFile } from './dataSetPaths';
 import getDataSetDir from './getDataSetDir';
 
 export default async function getDataSetDetails(
-  dataSets: Omit<DataSetViewModel, 'indicators' | 'filters'>[]
+  dataSets: Omit<DataSetViewModel, 'indicators' | 'filters'>[],
 ): Promise<DataSetViewModel[]> {
   const db = new Database();
 
@@ -15,10 +15,13 @@ export default async function getDataSetDetails(
 
     const [filters, indicators] = await Promise.all([
       db.all<{ group_label: string }>(
-        `SELECT DISTINCT group_label FROM '${tableFile(dataSetDir, 'filters')}'`
+        `SELECT DISTINCT group_label FROM '${tableFile(
+          dataSetDir,
+          'filters',
+        )}'`,
       ),
       db.all<{ label: string }>(
-        `SELECT DISTINCT label FROM '${tableFile(dataSetDir, 'indicators')}'`
+        `SELECT DISTINCT label FROM '${tableFile(dataSetDir, 'indicators')}'`,
       ),
     ]);
 

@@ -57,7 +57,7 @@ app.use(
     validateFormats: false,
     validateResponses: process.env.NODE_ENV === 'development',
     ignorePaths: /\/docs/,
-  })
+  }),
 );
 
 app.use('/docs', express.static(apiSpec));
@@ -71,7 +71,7 @@ app.get('/api/v1/publications', (req, res) => {
   const filteredPublications = (
     typeof search === 'string'
       ? allPublications.filter((publication) =>
-          publication.title.toLowerCase().includes(search.toLowerCase())
+          publication.title.toLowerCase().includes(search.toLowerCase()),
         )
       : allPublications
   ).map((publication) => ({
@@ -103,7 +103,7 @@ app.get('/api/v1/publications', (req, res) => {
 
 app.get('/api/v1/publications/:publicationId', (req, res) => {
   const publication = allPublications.find(
-    (publication) => publication.id === req.params.publicationId
+    (publication) => publication.id === req.params.publicationId,
   );
 
   if (!publication) {
@@ -118,7 +118,7 @@ app.get('/api/v1/publications/:publicationId', (req, res) => {
 
 app.get('/api/v1/publications/:publicationId/data-sets', async (req, res) => {
   const publication = allPublications.find(
-    (publication) => publication.id === req.params.publicationId
+    (publication) => publication.id === req.params.publicationId,
   );
 
   if (!publication) {
@@ -137,7 +137,7 @@ app.get('/api/v1/publications/:publicationId/data-sets', async (req, res) => {
         ...dataSet,
         _links: addHostUrlToLinks(_links, req),
       };
-    })
+    }),
   );
 });
 
@@ -146,7 +146,7 @@ app.get('/api/v1/data-sets/:dataSetId', async (req, res) => {
   const { dataSetVersion } = req.query;
 
   const matchingDataSet = allDataSets.find(
-    (dataSet) => dataSet.id === dataSetId
+    (dataSet) => dataSet.id === dataSetId,
   );
 
   if (!matchingDataSet) {
@@ -156,7 +156,7 @@ app.get('/api/v1/data-sets/:dataSetId', async (req, res) => {
   if (
     dataSetVersion &&
     !allDataSetVersions[dataSetId].some(
-      (version) => version.number === dataSetVersion
+      (version) => version.number === dataSetVersion,
     )
   ) {
     throw new NotFoundError();
@@ -182,7 +182,7 @@ app.get('/api/v1/data-sets/:dataSetId/meta', async (req, res) => {
   if (
     dataSetVersion &&
     !allDataSetVersions[dataSetId].some(
-      (version) => version.number === dataSetVersion
+      (version) => version.number === dataSetVersion,
     )
   ) {
     throw new NotFoundError();
@@ -203,7 +203,7 @@ app.get('/api/v1/data-sets/:dataSetId/meta', async (req, res) => {
             href: `/api/v1/data-sets/${dataSetId}/file`,
           },
         },
-        req
+        req,
       ),
     },
     ...meta,
@@ -242,7 +242,7 @@ app.get('/api/v1/data-sets/:dataSetId/file', async (req, res) => {
   if (
     dataSetVersion &&
     !allDataSetVersions[dataSetId].some(
-      (version) => version.number === dataSetVersion
+      (version) => version.number === dataSetVersion,
     )
   ) {
     throw new NotFoundError();
@@ -260,7 +260,7 @@ app.get('/api/v1/data-sets/:dataSetId/file', async (req, res) => {
       .contentType('application/zip')
       .setHeader(
         'Content-Disposition',
-        `attachment; filename="${fileName}.zip"`
+        `attachment; filename="${fileName}.zip"`,
       );
 
     return stream.pipe(res);
@@ -335,7 +335,7 @@ app.get(
     }
 
     const matchingVersion = allDataSetVersions[dataSetId].find(
-      (version) => version.number === dataSetVersion
+      (version) => version.number === dataSetVersion,
     );
 
     if (!matchingVersion) {
@@ -343,7 +343,7 @@ app.get(
     }
 
     return res.status(200).json(matchingVersion);
-  }
+  },
 );
 
 // Error handling
@@ -352,7 +352,7 @@ const errorHandler: ErrorRequestHandler<{}, ApiErrorViewModel> = (
   err,
   req,
   res,
-  _
+  _,
 ) => {
   if (err instanceof BadRequest) {
     return ValidationError.fromBadRequest(err, req).toResponse(res);

@@ -35,7 +35,7 @@ export const allPublications: PublicationSummaryViewModel[] = [
 ];
 
 function createPublication(
-  data: Omit<PublicationSummaryViewModel, 'slug' | '_links'>
+  data: Omit<PublicationSummaryViewModel, 'slug' | '_links'>,
 ): PublicationSummaryViewModel {
   return {
     ...data,

@@ -2,7 +2,7 @@ import fs from 'fs-extra';
 import Papa from 'papaparse';
 
 export default async function parseCsv<TResult = Record<string, string>>(
-  filePath: string
+  filePath: string,
 ): Promise<TResult[]> {
   return await new Promise((resolve) => {
     Papa.parse<TResult>(fs.createReadStream(filePath), {

@@ -36,7 +36,7 @@ type DataSetQueryConditions =
 
 type CriteriaParser<TCriteria extends ValueOf<DataSetQueryCriteria>> = (
   criteria: TCriteria,
-  path: string
+  path: string,
 ) => QueryFragmentParams | void;
 
 type AllDataSetQueryCriteria = Required<DataSetQueryCriteria>;
@@ -54,7 +54,7 @@ export type FilterItem = Pick<FilterRow, 'id' | 'label' | 'group_name'>;
 export default async function parseDataSetQueryConditions(
   state: DataSetQueryState,
   { facets }: DataSetQuery,
-  geographicLevels: Set<GeographicLevel>
+  geographicLevels: Set<GeographicLevel>,
 ): Promise<QueryFragmentParams> {
   const rawFilterItemIds = new Set<string>();
   const rawLocationIds = new Set<string>();
@@ -96,7 +96,7 @@ export default async function parseDataSetQueryConditions(
 function parseClause(
   clause: DataSetQueryConditions | DataSetQueryCriteria,
   path: string,
-  parsers: CriteriaParsers
+  parsers: CriteriaParsers,
 ): QueryFragmentParams {
   if ('and' in clause) {
     return parseSubClauses(clause.and, `${path}.and`, 'AND', parsers);
@@ -113,7 +113,7 @@ function parseSubClauses(
   subClauses: (DataSetQueryConditions | DataSetQueryCriteria)[],
   path: string,
   condition: 'AND' | 'OR',
-  parsers: CriteriaParsers
+  parsers: CriteriaParsers,
 ): QueryFragmentParams {
   return subClauses.reduce<QueryFragmentParams>(
     (acc, clause, index) => {
@@ -131,14 +131,14 @@ function parseSubClauses(
     {
       fragment: '',
       params: [],
-    }
+    },
   );
 }
 
 function parseCriteria(
   criteria: DataSetQueryCriteria,
   path: string,
-  parsers: CriteriaParsers
+  parsers: CriteriaParsers,
 ): QueryFragmentParams {
   return Object.entries(criteria).reduce<QueryFragmentParams>(
     (acc, [k, value]) => {
@@ -172,14 +172,14 @@ function parseCriteria(
     {
       fragment: '',
       params: [],
-    }
+    },
   );
 }
 
 function createParser<
   TCriteria extends ValueOf<DataSetQueryCriteria>,
   TValue extends ValueOf<TCriteria> = ValueOf<TCriteria>,
-  TComparator extends keyof TCriteria = keyof TCriteria
+  TComparator extends keyof TCriteria = keyof TCriteria,
 >({
   parser,
 }: {
@@ -187,7 +187,7 @@ function createParser<
   parser: (
     comparator: TComparator,
     values: TValue[],
-    meta: { path: string; criteria: TCriteria }
+    meta: { path: string; criteria: TCriteria },
   ) => {
     fragment: string;
     params?: (string | number | boolean)[];
@@ -218,14 +218,14 @@ function createParser<
       {
         fragment: '',
         params: [],
-      }
+      },
     );
   };
 }
 
 async function createFiltersParser(
   state: DataSetQueryState,
-  rawFilterItemIds: string[]
+  rawFilterItemIds: string[],
 ): Promise<CriteriaParser<DataSetQueryCriteriaFilters>> {
   const filterItemIds = parseIdHashes(rawFilterItemIds, state.filterIdHasher);
   const filterItemIdsByRawId = zipObject(rawFilterItemIds, filterItemIds);
@@ -240,7 +240,7 @@ async function createFiltersParser(
         values.map((value) => {
           const id = filterItemIdsByRawId[value];
           return filterItemsById[id];
-        })
+        }),
       );
 
       if (matchingItems.length < values.length) {
@@ -248,7 +248,7 @@ async function createFiltersParser(
           path,
           genericErrors.notFound({
             items: values.filter((value) => !filterItemIdsByRawId[value]),
-          })
+          }),
         );
       }
 
@@ -274,7 +274,7 @@ async function createFiltersParser(
                 fragment: `(${Object.entries(groupedMatchingItems())
                   .map(
                     ([group, items]) =>
-                      `data."${group}" IN (${placeholders(items)})`
+                      `data."${group}" IN (${placeholders(items)})`,
                   )
                   .join(' AND ')})`,
                 params,
@@ -286,7 +286,7 @@ async function createFiltersParser(
                 fragment: `(${Object.entries(groupedMatchingItems())
                   .map(
                     ([group, items]) =>
-                      `data."${group}" NOT IN (${placeholders(items)})`
+                      `data."${group}" NOT IN (${placeholders(items)})`,
                   )
                   .join(' AND ')})`,
                 params,
@@ -299,11 +299,11 @@ async function createFiltersParser(
 
 async function createLocationsParser(
   state: DataSetQueryState,
-  rawLocationIds: string[]
+  rawLocationIds: string[],
 ): Promise<CriteriaParser<DataSetQueryCriteriaLocations>> {
   const parsedIds = parseIdHashesAndCodes(
     rawLocationIds,
-    state.locationIdHasher
+    state.locationIdHasher,
   );
 
   const [ids, codes] = parsedIds.reduce(
@@ -316,7 +316,7 @@ async function createLocationsParser(
 
       return acc;
     },
-    [new Set<number>(), new Set<string>()]
+    [new Set<number>(), new Set<string>()],
   );
 
   const locations = await getLocations(state, [...ids], [...codes]);
@@ -330,7 +330,7 @@ async function createLocationsParser(
     state,
     parser: (comparator, values, { path }) => {
       const matchingLocations = compact(
-        values.flatMap((value) => locationsByRawId[value] ?? [])
+        values.flatMap((value) => locationsByRawId[value] ?? []),
       );
 
       if (matchingLocations.length < values.length) {
@@ -338,13 +338,13 @@ async function createLocationsParser(
           path,
           genericErrors.notFound({
             items: values.filter((value) => !locationsByRawId[value]),
-          })
+          }),
         );
       }
 
       const locationsByLevel = groupBy(
         matchingLocations,
-        (location) => location.level
+        (location) => location.level,
       );
 
       const createFragment = ({
@@ -359,7 +359,7 @@ async function createLocationsParser(
             const cols = geographicLevelColumns[level as GeographicLevel];
 
             return `(${cols.code}, ${cols.name}) ${comparator} (${locations.map(
-              (_) => '(?, ?)'
+              (_) => '(?, ?)',
             )})`;
           })
           .join(` ${join} `);
@@ -408,7 +408,7 @@ async function createLocationsParser(
 }
 
 function createTimePeriodsParser(
-  state: DataSetQueryState
+  state: DataSetQueryState,
 ): CriteriaParser<DataSetQueryCriteriaTimePeriods> {
   return createParser<DataSetQueryCriteriaTimePeriods, TimePeriodViewModel>({
     state,
@@ -452,14 +452,14 @@ function createTimePeriodsParser(
         case 'in':
           return {
             fragment: `(data.time_period, data.time_identifier) IN (${values.map(
-              (_) => '(?, ?)'
+              (_) => '(?, ?)',
             )})`,
             params,
           };
         case 'notIn':
           return {
             fragment: `(data.time_period, data.time_identifier) NOT IN (${values.map(
-              (_) => '(?, ?)'
+              (_) => '(?, ?)',
             )})`,
             params,
           };
@@ -470,7 +470,7 @@ function createTimePeriodsParser(
 
 function createGeographicLevelsParser(
   state: DataSetQueryState,
-  geographicLevels: Set<GeographicLevel>
+  geographicLevels: Set<GeographicLevel>,
 ): CriteriaParser<DataSetQueryCriteriaGeographicLevels> {
   return createParser<DataSetQueryCriteriaGeographicLevels, GeographicLevel>({
     state,
@@ -484,7 +484,7 @@ function createGeographicLevelsParser(
           path,
           genericErrors.notFound({
             items: values.filter((value) => !geographicLevels.has(value)),
-          })
+          }),
         );
       }
 
@@ -504,7 +504,7 @@ function createGeographicLevelsParser(
           return params.length > 0
             ? {
                 fragment: `data.geographic_level NOT IN (${placeholders(
-                  params
+                  params,
                 )})`,
                 params,
               }
@@ -516,7 +516,7 @@ function createGeographicLevelsParser(
 
 async function getFilterItems(
   { db, tableFile }: DataSetQueryState,
-  filterItemIds: number[]
+  filterItemIds: number[],
 ): Promise<FilterItem[]> {
   const ids = compact(filterItemIds);
 
@@ -529,14 +529,14 @@ async function getFilterItems(
         FROM '${tableFile('filters')}'
         WHERE id IN (${placeholders(ids)});
     `,
-    ids
+    ids,
   );
 }
 
 async function getLocations(
   { db, tableFile }: DataSetQueryState,
   locationIds: number[],
-  locationCodes: string[]
+  locationCodes: string[],
 ): Promise<LocationRow[]> {
   const ids = compact(locationIds);
   const codes = compact(locationCodes);
@@ -554,6 +554,6 @@ async function getLocations(
         codes.length > 0 ? `code IN (${placeholders(codes)})` : '',
       ]).join(' OR ')}
       `,
-    [...ids, ...codes]
+    [...ids, ...codes],
   );
 }

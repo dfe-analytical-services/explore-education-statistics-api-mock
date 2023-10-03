@@ -59,7 +59,7 @@ export const columnsToGeographicLevel: Dictionary<GeographicLevel> =
 
       return acc;
     },
-    {}
+    {},
   );
 
 export const baseGeographicLevelOrder: GeographicLevel[] = [
@@ -102,5 +102,5 @@ export const geographicLevelCsvLabels: Record<GeographicLevel, string> = {
 };
 
 export const csvLabelsToGeographicLevels = invert(
-  geographicLevelCsvLabels
+  geographicLevelCsvLabels,
 ) as Record<string, GeographicLevel>;

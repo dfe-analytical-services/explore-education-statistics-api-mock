@@ -4,7 +4,7 @@ import { timePeriodCodeIdentifiers } from './timePeriodConstants';
 
 export default function formatTimePeriodLabel(
   code: TimePeriodCode,
-  year: number
+  year: number,
 ): string {
   const yearLabel = formatTimePeriodYearLabel(code, year);
 

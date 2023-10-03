@@ -20,17 +20,17 @@ async function runImport() {
   await fs.ensureDir(dataImportsDir);
 
   const files = (await fs.readdir(dataImportsDir)).filter((file) =>
-    file.endsWith('.csv')
+    file.endsWith('.csv'),
   );
 
   if (!files.length) {
     throw new Error(
-      'No data files to import. Place some in the `data-imports` directory.'
+      'No data files to import. Place some in the `data-imports` directory.',
     );
   }
 
   const [metaFiles, dataFiles] = partition(files, (file) =>
-    file.endsWith('.meta.csv')
+    file.endsWith('.meta.csv'),
   );
 
   for (const dataFile of dataFiles) {
@@ -39,7 +39,7 @@ async function runImport() {
     const fileBaseName = path.basename(dataFile, '.csv');
 
     const metaFile = metaFiles.find(
-      (file) => file === `${fileBaseName}.meta.csv`
+      (file) => file === `${fileBaseName}.meta.csv`,
     );
 
     if (!metaFile) {
@@ -72,7 +72,7 @@ async function runImport() {
       `
       COPY (SELECT * FROM read_csv_auto('${dataFilePath}', ALL_VARCHAR=TRUE)) 
       TO '${outputDir}/data.csv.gz' WITH (COMPRESSION gzip)
-      `
+      `,
     );
 
     console.timeEnd(timeLabel);
@@ -94,19 +94,19 @@ async function extractData(db: Database, csvPath: string) {
     await db.run(`CREATE TABLE data(id BIGINT PRIMARY KEY)`);
 
     const columns = await db.all<{ column_name: string; column_type: string }>(
-      `DESCRIBE SELECT * FROM read_csv_auto('${csvPath}', ALL_VARCHAR=TRUE)`
+      `DESCRIBE SELECT * FROM read_csv_auto('${csvPath}', ALL_VARCHAR=TRUE)`,
     );
 
     for (const column of columns) {
       await db.run(
-        `ALTER TABLE data ADD COLUMN "${column.column_name}" VARCHAR`
+        `ALTER TABLE data ADD COLUMN "${column.column_name}" VARCHAR`,
       );
     }
 
     await db.run(
       `INSERT INTO data 
         SELECT nextval('data_seq') AS id, * 
-        FROM read_csv_auto('${csvPath}', ALL_VARCHAR=TRUE)`
+        FROM read_csv_auto('${csvPath}', ALL_VARCHAR=TRUE)`,
     );
 
     console.timeEnd(timeLabel);
@@ -145,7 +145,7 @@ async function extractTimePeriods(db: Database): Promise<void> {
         year UINTEGER NOT NULL,
         identifier VARCHAR,
         ordering UINTEGER NOT NULL
-     );`
+     );`,
   );
 
   const timePeriods = await db.all<{ year: string; identifier: string }>(`
@@ -165,7 +165,7 @@ async function extractTimePeriods(db: Database): Promise<void> {
     await db.run(
       `
         INSERT INTO time_periods(year, identifier, ordering) VALUES (?, ?, ?)`,
-      [timePeriod.year, timePeriod.identifier, index]
+      [timePeriod.year, timePeriod.identifier, index],
     );
   }
 
@@ -174,17 +174,17 @@ async function extractTimePeriods(db: Database): Promise<void> {
 
 async function extractLocations(
   db: Database,
-  columns: string[]
+  columns: string[],
 ): Promise<void> {
   const timeLabel = '=> Imported locations meta';
   console.time(timeLabel);
 
   const locationCols = columns.filter(
-    (column) => columnsToGeographicLevel[column]
+    (column) => columnsToGeographicLevel[column],
   );
   const geographicLevels = locationCols.reduce(
     (acc, column) => acc.add(columnsToGeographicLevel[column]),
-    new Set<GeographicLevel>()
+    new Set<GeographicLevel>(),
   );
 
   await db.run('CREATE SEQUENCE locations_seq START 1;');
@@ -194,7 +194,7 @@ async function extractLocations(
        level VARCHAR NOT NULL,
        code VARCHAR DEFAULT '',
        name VARCHAR
-     );`
+     );`,
   );
 
   for (const geographicLevel of geographicLevels) {
@@ -206,7 +206,7 @@ async function extractLocations(
         FROM data
         WHERE data.geographic_level = ? AND ${cols.name} != ''
         ORDER BY level, ${cols.code}, ${cols.name};`,
-      [geographicLevel, geographicLevelCsvLabels[geographicLevel]]
+      [geographicLevel, geographicLevelCsvLabels[geographicLevel]],
     );
   }
 
@@ -216,7 +216,7 @@ async function extractLocations(
 async function extractFilters(
   db: Database,
   columns: string[],
-  metaFileRows: MetaFileRow[]
+  metaFileRows: MetaFileRow[],
 ): Promise<void> {
   const timeLabel = '=> Imported filters meta';
   console.time(timeLabel);
@@ -230,12 +230,12 @@ async function extractFilters(
        group_name VARCHAR NOT NULL,
        group_hint VARCHAR,
        is_aggregate BOOLEAN DEFAULT FALSE
-     );`
+     );`,
   );
 
   const filters = orderBy(
     metaFileRows.filter((row) => row.col_type === 'Filter'),
-    (row) => row.col_name
+    (row) => row.col_name,
   );
 
   for (const filter of filters) {
@@ -248,7 +248,7 @@ async function extractFilters(
             FROM data 
             ORDER BY ${filter.col_name}
         );`,
-      [filter.label, filter.col_name, filter.filter_hint]
+      [filter.label, filter.col_name, filter.filter_hint],
     );
   }
 
@@ -258,7 +258,7 @@ async function extractFilters(
 async function extractIndicators(
   db: Database,
   columns: string[],
-  metaFileRows: MetaFileRow[]
+  metaFileRows: MetaFileRow[],
 ): Promise<void> {
   const timeLabel = '=> Imported indicators meta';
   console.time(timeLabel);
@@ -271,12 +271,12 @@ async function extractIndicators(
        name VARCHAR NOT NULL,
        decimal_places INT,
        unit VARCHAR
-     );`
+     );`,
   );
 
   const indicators = orderBy(
     metaFileRows.filter((row) => row.col_type === 'Indicator'),
-    (row) => row.label
+    (row) => row.label,
   );
 
   for (const indicator of indicators) {
@@ -287,7 +287,7 @@ async function extractIndicators(
         indicator.col_name,
         indicator.indicator_dp,
         indicator.indicator_unit,
-      ]
+      ],
     );
   }
 

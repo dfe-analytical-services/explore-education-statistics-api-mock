@@ -6,6 +6,8 @@
   "private": true,
   "scripts": {
     "build": "swc src -d build --copy-files",
+    "format": "prettier --write src",
+    "format:check": "prettier --check src",
     "import": "ts-node --transpile-only src/scripts/import.ts",
     "start": "NODE_ENV=development ts-node-dev -r tsconfig-paths/register --respawn --transpile-only src/server.ts",
     "start:prod": "node build/server.js",

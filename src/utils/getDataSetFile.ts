@@ -6,17 +6,17 @@ import { DataSetMetaViewModel } from '../schema';
 import getDataSetDir from './getDataSetDir';
 
 export async function getDataSetCsvFileStream(
-  dataSetId: string
+  dataSetId: string,
 ): Promise<Transform> {
   const dataSetDir = getDataSetDir(dataSetId);
   return createReadStream(`${dataSetDir}/data.csv.gz`).pipe(
-    zlib.createGunzip()
+    zlib.createGunzip(),
   );
 }
 
 export async function getDataSetZipFileStream(
   dataSetId: string,
-  dataSetMeta: Omit<DataSetMetaViewModel, '_links'>
+  dataSetMeta: Omit<DataSetMetaViewModel, '_links'>,
 ): Promise<Transform> {
   const csvStream = await getDataSetCsvFileStream(dataSetId);
 

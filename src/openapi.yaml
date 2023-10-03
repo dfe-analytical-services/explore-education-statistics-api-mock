@@ -142,11 +142,11 @@ paths:
       summary: Query a data set (GET)
       description: |-
         Query a data set using a `GET` request, returning the filtered results.
-        
+
         Note that there is a `POST` variant of this endpoint which provides a more complete set
         of querying functionality. The `GET` variant is only recommended for initial exploratory 
         testing or simple queries that do not need advanced functionality.
-        
+
         Unlike the `POST` variant, this endpoint does not allow condition clauses (`and`, `or`, `not`)
         and consequently cannot express more complex queries.
       tags:
@@ -166,28 +166,28 @@ paths:
             type: string
         - name: filters
           in: query
-          description:  The filters to match results by.
+          description: The filters to match results by.
           explode: false
           allowReserved: true
           schema:
             $ref: '#/components/schemas/DataSetQueryCriteriaFilters'
         - name: geographicLevels
           in: query
-          description:  The geographic levels to match results by.
+          description: The geographic levels to match results by.
           explode: false
           allowReserved: true
           schema:
             $ref: '#/components/schemas/DataSetQueryCriteriaGeographicLevels'
         - name: locations
           in: query
-          description:  The locations to match results by.
+          description: The locations to match results by.
           explode: false
           allowReserved: true
           schema:
             $ref: '#/components/schemas/DataSetQueryCriteriaLocations'
         - name: timePeriods
           in: query
-          description:  The time periods to match results by.
+          description: The time periods to match results by.
           explode: false
           allowReserved: true
           schema:
@@ -269,11 +269,11 @@ paths:
       summary: Query a data set (POST)
       description: |-
         Query a data set using a `POST` request, returning the filtered results.
-        
+
         Note that for simpler queries or exploratory testing, there is also `GET` variant of this 
         endpoint which only handles a smaller subset of querying functionality. However, for most 
         use-cases, this endpoint is recommended as it provides the complete set of functionality.
-        
+
         Unlike the `GET` variant, this endpoint allows condition clauses (`and`, `or`, `not`)
         and consequently can express more complex queries.
       tags:
@@ -293,7 +293,7 @@ paths:
             type: string
         - name: debug
           in: query
-          description: |- 
+          description: |-
             Enable debug mode. Results will be formatted with human-readable labels to assist identification.
           required: false
           schema:
@@ -321,7 +321,7 @@ paths:
           in: header
           description: |-
             The media type to format the response data in (defaults to `application/json`). Allowed options:
-            
+
             - `application/json`
             - `text/csv`
           schema:
@@ -369,9 +369,9 @@ paths:
             type: string
         - name: Accept
           in: header
-          description: |- 
+          description: |-
             The media type to output the file in (defaults to `text/csv`). Allowed options:
-            
+
             - `text/csv` - Outputs the data set as a compressed csv file (defaults to gzip).
             - `application/zip` - Outputs a zip file containing the data set, its metadata and any relevant files.
           schema:
@@ -756,13 +756,13 @@ components:
       additionalProperties: false
     DataSetQueryCriteriaLocations:
       type: object
-      description: |- 
+      description: |-
         The locations to match results by. These can be matched either by the location ID or code. 
         Note the following differences:
-        
+
         - IDs only match a **single** location
         - Codes may match **multiple** locations
-        
+
         Whilst codes are mostly unique to a single location, they sometimes are used for multiple 
         locations. This may match more results than you expect so it is recommended to use IDs where
         possible.
@@ -833,7 +833,7 @@ components:
           type: string
           description: |-
             The status of the data set. Can be one of the following:
-            
+
             - `Active` - the data set is actively maintained and updates will be published to it
             - `Deprecated` - the data set is discontinued and updates will no longer be published to it
           enum:
@@ -913,7 +913,7 @@ components:
           type: object
           description: |-
             A dictionary containing the row's associated filters. 
-            
+
             The key is the filter name and the value is ID of the filter item.
           additionalProperties:
             type: string
@@ -923,7 +923,7 @@ components:
           type: object
           description: |-
             A dictionary containing the row's associated locations. 
-            
+
             The key is the geographic level and the value is the ID or code of the location.
           additionalProperties:
             type: string
@@ -1000,16 +1000,16 @@ components:
           type: string
           description: |-
             The version type. Can be one of the following:
-            
+
             - `Major` - backwards **incompatible** changes are being introduced
             - `Minor` - backwards compatible changes are being introduced
             - `Deprecating` - the data set is being deprecated and should no longer be used
-            
+
             Major versions typically indicate that some action may be required to ensure code 
             that consumes the data set continues to work.
-            
+
             Minor versions should not cause issues in the functionality of existing code.
-            
+
             Deprecating versions may indicate the superseding data set (if applicable) to use. In 
             these cases, it is advisable to try and migrate any existing code to the new data set as 
             soon as possible. It is not recommended that you use deprecated data sets for longer 
@@ -1052,7 +1052,7 @@ components:
           type: string
           description: |-
             The type of change that was made. This can be:
-            
+
             - `Add` - the addition of something e.g. a new facet
             - `Update` - an update to something e.g. a facet's label or other attribute
             - `Delete` - the removal of something e.g. a facet
@@ -1080,7 +1080,7 @@ components:
             - $ref: '#/components/schemas/DataSetVersionChangeTimePeriodViewModel'
         previous:
           type: object
-          description: |- 
+          description: |-
             The previous state of the change target (if applicable). Only fields that were 
             changed are included.
           additionalProperties: true
@@ -1208,7 +1208,7 @@ components:
           description: The error's message.
         code:
           type: string
-          description: |- 
+          description: |-
             The error's code. May be used for further diagnosis, or error handling in consuming code.
         details:
           type: object
@@ -1377,12 +1377,12 @@ components:
           description: The name of the location.
         code:
           type: string
-          description: |- 
+          description: |-
             The code of the location (if applicable). These can be:
-            
+
             - ONS codes for geographic levels like countries, local authorities, etc
             - DfE codes for geographic levels like schools, providers, etc
-            
+
             Note that these codes may not be unique across locations at the same geographic level.
     PagedDataSetVersionsViewModel:
       type: object

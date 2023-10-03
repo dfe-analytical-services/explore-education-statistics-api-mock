@@ -34,7 +34,7 @@ export default class Database {
   async run(
     query: string,
     params: (string | number)[] = [],
-    options?: QueryOptions
+    options?: QueryOptions,
   ): Promise<void> {
     if (this.canDebug(options)) {
       console.time(timerLabel);
@@ -62,7 +62,7 @@ export default class Database {
   async all<TResult>(
     query: string,
     params: any[] = [],
-    options?: QueryOptions
+    options?: QueryOptions,
   ): Promise<TResult[]> {
     if (this.canDebug(options)) {
       console.time(timerLabel);
@@ -90,7 +90,7 @@ export default class Database {
   async first<TResult>(
     query: string,
     params: any[] = [],
-    options?: QueryOptions
+    options?: QueryOptions,
   ): Promise<TResult> {
     if (this.canDebug(options)) {
       console.time(timerLabel);
@@ -118,7 +118,7 @@ export default class Database {
   stream<TResult>(
     query: string,
     params: any[] = [],
-    options?: QueryOptions
+    options?: QueryOptions,
   ): StreamResult<TResult> {
     if (this.canDebug(options)) {
       this.logQuery(query, params, options.debug);
@@ -134,19 +134,19 @@ export default class Database {
   private logQuery(
     query: string,
     params: unknown[],
-    options: boolean | DebugOptions
+    options: boolean | DebugOptions,
   ) {
     console.log(
       formatQuery(
         query,
-        typeof options !== 'boolean' && options.showPlaceholders ? [] : params
-      )
+        typeof options !== 'boolean' && options.showPlaceholders ? [] : params,
+      ),
     );
     console.log(params);
   }
 
   private canDebug(
-    options?: QueryOptions
+    options?: QueryOptions,
   ): options is QueryOptions & { debug: true | DebugOptions } {
     return !!options?.debug && process.env.NODE_ENV === 'development';
   }

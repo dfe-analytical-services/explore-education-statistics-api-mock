@@ -9,7 +9,7 @@ export default function createPaginationLinks(
   paging: {
     page: number;
     totalPages: number;
-  }
+  },
 ): LinksViewModel {
   const { page, totalPages } = paging;
   const { pageSize } = parsePaginationParams(req);

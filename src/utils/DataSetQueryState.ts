@@ -38,14 +38,14 @@ export default class DataSetQueryState {
 
   appendWarning = (
     path: keyof DataSetQuery | string,
-    warning: WarningViewModel
+    warning: WarningViewModel,
   ) => {
     append(this.warnings, path, warning);
   };
 
   prependWarning = (
     path: keyof DataSetQuery | string,
-    warning: WarningViewModel
+    warning: WarningViewModel,
   ) => {
     prepend(this.warnings, path, warning);
   };

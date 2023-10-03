@@ -12,7 +12,7 @@ export function parseIdHashes(ids: string[], idHasher: IdHasher): number[] {
 
 export function parseIdLikeStrings(
   ids: string[],
-  idHasher: IdHasher
+  idHasher: IdHasher,
 ): string[] {
   return ids.map((id) => {
     try {
@@ -28,7 +28,7 @@ export function parseIdLikeStrings(
 
 export function parseIdHashesAndCodes(
   ids: string[],
-  idHasher: IdHasher
+  idHasher: IdHasher,
 ): (string | number)[] {
   return ids.map((id) => {
     try {

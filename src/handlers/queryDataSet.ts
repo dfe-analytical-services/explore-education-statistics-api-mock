@@ -16,7 +16,7 @@ import {
 export async function queryDataSet(
   query: DataSetQuery,
   req: Request,
-  res: Response
+  res: Response,
 ) {
   const { dataSetId } = req.params;
   const { dataSetVersion } = req.query;
@@ -28,7 +28,7 @@ export async function queryDataSet(
   if (
     dataSetVersion &&
     !allDataSetVersions[dataSetId].some(
-      (version) => version.number === dataSetVersion
+      (version) => version.number === dataSetVersion,
     )
   ) {
     throw new NotFoundError();
@@ -52,7 +52,7 @@ export async function queryDataSet(
         page,
         totalPages,
       }),
-      (link) => link.href
+      (link) => link.href,
     );
 
     return res
@@ -88,7 +88,7 @@ export async function queryDataSet(
             href: `/api/v1/data-sets/${dataSetId}/meta`,
           },
         },
-        req
+        req,
       ),
     },
     ...response,

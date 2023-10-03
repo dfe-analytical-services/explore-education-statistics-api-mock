@@ -28,7 +28,11 @@ const DEBUG_DELIMITER = ' :: ';
 export async function runDataSetQuery(
   dataSetId: string,
   query: DataSetQuery,
-  { debug, page, pageSize }: { debug?: boolean; page: number; pageSize: number }
+  {
+    debug,
+    page,
+    pageSize,
+  }: { debug?: boolean; page: number; pageSize: number },
 ): Promise<Omit<DataSetResultsViewModel, '_links'>> {
   const dataSetDir = getDataSetDir(dataSetId);
   const state = new DataSetQueryState(dataSetDir);
@@ -39,12 +43,12 @@ export async function runDataSetQuery(
       { ...query, page, pageSize },
       {
         debug,
-      }
+      },
     );
 
     const unquotedFilterCols = meta.filterCols.map((col) => col.slice(1, -1));
     const indicatorsById = keyBy(meta.indicators, (indicator) =>
-      indicator.name.toString()
+      indicator.name.toString(),
     );
 
     if (results.length === 0) {
@@ -95,17 +99,17 @@ export async function runDataSetQuery(
 
                 acc[level] = debug
                   ? [hashedId, result[cols.name], result[cols.code]].join(
-                      DEBUG_DELIMITER
+                      DEBUG_DELIMITER,
                     )
                   : hashedId;
               }
 
               return acc;
             },
-            {}
+            {},
           ),
           values: mapValues(indicatorsById, (indicator) =>
-            result[indicator.name].toString()
+            result[indicator.name].toString(),
           ),
         };
       }),
@@ -123,7 +127,7 @@ interface CsvReturn {
 export async function runDataSetQueryToCsv(
   dataSetId: string,
   query: DataSetQuery,
-  { page, pageSize }: { page: number; pageSize: number }
+  { page, pageSize }: { page: number; pageSize: number },
 ): Promise<CsvReturn> {
   const dataSetDir = getDataSetDir(dataSetId);
   const state = new DataSetQueryState(dataSetDir);
@@ -132,7 +136,7 @@ export async function runDataSetQueryToCsv(
     const { results, total } = await runQuery<DataRow>(
       state,
       { ...query, page, pageSize },
-      { formatCsv: true }
+      { formatCsv: true },
     );
 
     return {
@@ -163,7 +167,7 @@ interface RunQueryReturn<TRow extends DataRow = DataRow> {
 async function runQuery<TRow extends DataRow = DataRow>(
   state: DataSetQueryState,
   query: DataSetQuery & { page: number; pageSize: number },
-  options: RunQueryOptions = {}
+  options: RunQueryOptions = {},
 ): Promise<RunQueryReturn<TRow>> {
   const { db, tableFile } = state;
   const { debug, formatCsv } = options;
@@ -171,7 +175,7 @@ async function runQuery<TRow extends DataRow = DataRow>(
 
   const indicatorIds = parseIdLikeStrings(
     query.indicators ?? [],
-    createIndicatorIdHasher(state.dataSetDir)
+    createIndicatorIdHasher(state.dataSetDir),
   );
 
   const [locationCols, geographicLevels, filterCols, indicators] =
@@ -192,7 +196,7 @@ async function runQuery<TRow extends DataRow = DataRow>(
   const where = await parseDataSetQueryConditions(
     state,
     query,
-    geographicLevels
+    geographicLevels,
   );
 
   const totalQuery = `
@@ -269,7 +273,7 @@ async function runQuery<TRow extends DataRow = DataRow>(
           (filter) =>
             `JOIN '${tableFile('filters')}' AS ${filter} 
                 ON ${filter}.label = data.${filter} 
-                AND ${filter}.group_name = '${filter.slice(1, -1)}'`
+                AND ${filter}.group_name = '${filter.slice(1, -1)}'`,
         )
         .join(' ')}
   `;
@@ -312,7 +316,7 @@ async function runQuery<TRow extends DataRow = DataRow>(
 
 function getLocationJoins(
   { tableFile }: DataSetQueryState,
-  geographicLevels: Set<GeographicLevel>
+  geographicLevels: Set<GeographicLevel>,
 ): string {
   return [...geographicLevels]
     .map((level) => {
@@ -330,7 +334,7 @@ function getOrderings(
   query: DataSetQuery,
   state: DataSetQueryState,
   filterCols: string[],
-  geographicLevels: Set<GeographicLevel>
+  geographicLevels: Set<GeographicLevel>,
 ): string[] {
   // Default to ordering by descending time periods
   if (!query.sort) {
@@ -389,7 +393,7 @@ async function getLocationColumns({
 }: DataSetQueryState): Promise<string[]> {
   return (
     await db.all<{ level: GeographicLevel }>(
-      `SELECT DISTINCT level FROM '${tableFile(dataSetDir, 'locations')}'`
+      `SELECT DISTINCT level FROM '${tableFile(dataSetDir, 'locations')}'`,
     )
   ).flatMap((row) => {
     const cols = geographicLevelColumns[row.level];
@@ -402,13 +406,13 @@ async function getGeographicLevels({
   dataSetDir,
 }: DataSetQueryState): Promise<Set<GeographicLevel>> {
   const rows = await db.all<{ geographic_level: string }>(
-    `SELECT DISTINCT geographic_level FROM '${tableFile(dataSetDir, 'data')}'`
+    `SELECT DISTINCT geographic_level FROM '${tableFile(dataSetDir, 'data')}'`,
   );
 
   return new Set<GeographicLevel>(
     compact(
-      rows.map((row) => csvLabelsToGeographicLevels[row.geographic_level])
-    )
+      rows.map((row) => csvLabelsToGeographicLevels[row.geographic_level]),
+    ),
   );
 }
 
@@ -426,7 +430,7 @@ async function getFilterColumns({
 
 async function getIndicators(
   state: DataSetQueryState,
-  indicatorIds: string[]
+  indicatorIds: string[],
 ): Promise<IndicatorRow[]> {
   const { db, indicatorIdHasher, tableFile } = state;
 
@@ -447,7 +451,7 @@ async function getIndicators(
      FROM '${tableFile('indicators')}'
      WHERE id::VARCHAR IN (${idPlaceholders}) 
         OR name IN (${idPlaceholders});`,
-    ids
+    ids,
   );
 
   if (indicators.length < ids.length) {
@@ -462,7 +466,7 @@ async function getIndicators(
       'indicators',
       genericErrors.notFound({
         items: uniq(ids.filter((id) => !allowed.has(id))),
-      })
+      }),
     );
   }
 

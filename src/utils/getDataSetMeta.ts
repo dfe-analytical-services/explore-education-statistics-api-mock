@@ -31,13 +31,13 @@ import {
 import parseTimePeriodCode from './parseTimePeriodCode';
 
 export default async function getDataSetMeta(
-  dataSetId: string
+  dataSetId: string,
 ): Promise<Omit<DataSetMetaViewModel, '_links'>> {
   const dataSetDir = getDataSetDir(dataSetId);
   const db = new Database();
 
   const { total } = await db.first<{ total: number }>(
-    `SELECT count(*) as total FROM '${tableFile(dataSetDir, 'data')}';`
+    `SELECT count(*) as total FROM '${tableFile(dataSetDir, 'data')}';`,
   );
 
   const [locations, geographicLevels, timePeriods, filters, indicators] =
@@ -65,11 +65,11 @@ export default async function getDataSetMeta(
 
 async function getTimePeriodsMeta(
   db: Database,
-  dataSetDir: string
+  dataSetDir: string,
 ): Promise<TimePeriodMetaViewModel[]> {
   const timePeriods = await db.all<TimePeriodRow>(
     `SELECT *
-       FROM '${tableFile(dataSetDir, 'time_periods')}';`
+       FROM '${tableFile(dataSetDir, 'time_periods')}';`,
   );
 
   return timePeriods.map((timePeriod) => {
@@ -85,24 +85,24 @@ async function getTimePeriodsMeta(
 
 async function getGeographicLevels(
   db: Database,
-  dataSetDir: string
+  dataSetDir: string,
 ): Promise<GeographicLevel[]> {
   const rows = await db.all<{ geographic_level: string }>(
-    `SELECT DISTINCT geographic_level FROM '${tableFile(dataSetDir, 'data')}';`
+    `SELECT DISTINCT geographic_level FROM '${tableFile(dataSetDir, 'data')}';`,
   );
 
   return sortBy(
     rows.map((row) => csvLabelsToGeographicLevels[row.geographic_level]),
-    (level) => baseGeographicLevelOrder.indexOf(level)
+    (level) => baseGeographicLevelOrder.indexOf(level),
   );
 }
 
 async function getLocationsMeta(
   db: Database,
-  dataSetDir: string
+  dataSetDir: string,
 ): Promise<LocationLevelMetaViewModel[]> {
   const locations = await db.all<LocationRow>(
-    `SELECT * FROM '${tableFile(dataSetDir, 'locations')}'`
+    `SELECT * FROM '${tableFile(dataSetDir, 'locations')}'`,
   );
 
   if (locations.length === 0) {
@@ -125,7 +125,7 @@ async function getLocationsMeta(
 
       return acc;
     },
-    {}
+    {},
   );
 
   return Object.entries(grouped).map(([level, locations]) => {
@@ -140,7 +140,7 @@ async function getLocationsMeta(
 
 async function getFiltersMeta(
   db: Database,
-  dataSetDir: string
+  dataSetDir: string,
 ): Promise<FilterMetaViewModel[]> {
   const filePath = tableFile(dataSetDir, 'filters');
 
@@ -149,7 +149,7 @@ async function getFiltersMeta(
         group_label AS label,
         group_name AS name,
         group_hint AS hint
-      FROM '${filePath}';`
+      FROM '${filePath}';`,
   );
 
   const hasher = createFilterIdHasher(dataSetDir);
@@ -161,7 +161,7 @@ async function getFiltersMeta(
       Pick<FilterRow, 'id' | 'label' | 'is_aggregate'>
     >(
       `SELECT id, label, is_aggregate FROM '${filePath}' WHERE group_label = ? ORDER BY label ASC`,
-      [group.label]
+      [group.label],
     );
 
     filtersMeta.push({
@@ -183,12 +183,15 @@ async function getFiltersMeta(
 
 async function getIndicatorsMeta(
   db: Database,
-  dataSetDir: string
+  dataSetDir: string,
 ): Promise<IndicatorMetaViewModel[]> {
   const hasher = createIndicatorIdHasher(dataSetDir);
 
   const indicators = await db.all<IndicatorRow>(
-    `SELECT * FROM '${tableFile(dataSetDir, 'indicators')}' ORDER BY label ASC;`
+    `SELECT * FROM '${tableFile(
+      dataSetDir,
+      'indicators',
+    )}' ORDER BY label ASC;`,
   );
 
   return indicators.map((indicator) => {
