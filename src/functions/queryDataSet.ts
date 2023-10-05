@@ -7,6 +7,7 @@ import {
 import { omitBy } from 'lodash';
 import path from 'path';
 import { ParsedQs } from 'qs';
+import withErrorHandling from './middlewares/withErrorHandling';
 import NotFoundError from '../errors/NotFoundError';
 import { allDataSetVersions } from '../mocks/dataSetVersions';
 import { DataSetQuery } from '../schema';
@@ -26,7 +27,7 @@ app.http('queryDataSet', {
   methods: ['GET', 'POST'],
   route: 'v1/data-sets/{dataSetId}/query',
   authLevel: 'anonymous',
-  handler: queryDataSet,
+  handler: withErrorHandling(queryDataSet),
 });
 
 export async function queryDataSet(

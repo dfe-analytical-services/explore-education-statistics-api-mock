@@ -339,35 +339,51 @@ app.get(
 
 // Error handling
 
-const errorHandler: ErrorRequestHandler<{}, ApiErrorViewModel> = (
+const errorHandler: ErrorRequestHandler<{}, ApiErrorViewModel | string> = (
   err,
   req,
   res,
   _,
 ) => {
-  if (err instanceof BadRequest) {
-    return ValidationError.fromBadRequest(err, req).toResponse(res);
+  const handleApiError = (err: unknown) => {
+    if (err instanceof BadRequest) {
+      return ValidationError.fromBadRequest(err, req);
+    }
+
+    if (err instanceof ApiError) {
+      return err;
+    }
+
+    if (
+      err instanceof SyntaxError &&
+      'statusCode' in err &&
+      err.statusCode === 400
+    ) {
+      return new ApiError({
+        title: 'Malformed request could not be parsed due to syntax errors.',
+        status: 400,
+        type: 'Bad Request',
+      });
+    }
+
+    console.error(err);
+
+    return new InternalServerError();
+  };
+
+  const apiError = handleApiError(err);
+
+  res.status(apiError.status);
+
+  if (res.req.accepts('application/json')) {
+    return res.send(this);
   }
 
-  if (err instanceof ApiError) {
-    return err.toResponse(res);
+  if (res.req.accepts('text/html', 'text/*')) {
+    return res.send(apiError.title);
   }
 
-  if (
-    err instanceof SyntaxError &&
-    'statusCode' in err &&
-    err.statusCode === 400
-  ) {
-    return new ApiError({
-      title: 'Malformed request could not be parsed due to syntax errors.',
-      status: 400,
-      type: 'Bad Request',
-    }).toResponse(res);
-  }
-
-  console.error(err);
-
-  return new InternalServerError().toResponse(res);
+  return res.send('');
 };
 
 app.use(errorHandler);
