@@ -12,11 +12,11 @@ LABEL fly_launch_runtime="nodejs"
 
 WORKDIR /app
 
-COPY --from=builder /app/build ./build
+COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package*.json ./
 
 ENV NODE_ENV production
 
 RUN npm ci
 
-CMD [ "npm", "run", "start:prod" ]
+CMD [ "npm", "run", "start:server" ]

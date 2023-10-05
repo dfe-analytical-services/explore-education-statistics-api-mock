@@ -1,10 +1,13 @@
-import { Request } from 'express';
+import type { ParsedQs } from 'qs';
 
-export default function parsePaginationParams(req: Request): {
+interface PaginationParams {
   page?: number;
   pageSize?: number;
-} {
-  const { query } = req;
+}
+
+export default function parsePaginationParams(
+  query: ParsedQs,
+): PaginationParams {
   let page: number | undefined;
   let pageSize: number | undefined;
 

@@ -16,12 +16,10 @@ import { allDataSetVersions } from './mocks/dataSetVersions';
 import { allPublications } from './mocks/publications';
 import {
   ApiErrorViewModel,
-  DataSetQuery,
   DataSetVersionViewModel,
   PagedDataSetVersionsViewModel,
 } from './schema';
-import createPaginationLinks from './utils/createPaginationLinks';
-import createSelfLink from './utils/createSelfLink';
+import createLinks from './utils/createLinks';
 import getDataSetDetails from './utils/getDataSetDetails';
 import { dataSetDirs } from './utils/getDataSetDir';
 import {
@@ -30,7 +28,8 @@ import {
 } from './utils/getDataSetFile';
 import getDataSetMeta from './utils/getDataSetMeta';
 import parsePaginationParams from './utils/parsePaginationParams';
-import parseQueryString from './utils/parseQueryString';
+import { parseQueryString } from './utils/queryStringParsers';
+import { getFullRequestUrl } from './utils/requestUtils';
 import { addHostUrlToLinks } from './utils/responseUtils';
 
 process.chdir(__dirname);
@@ -65,7 +64,7 @@ app.use('/docs', express.static(apiSpec));
 
 app.get('/api/v1/publications', (req, res) => {
   const { search } = req.query;
-  const { page = 1, pageSize = 20 } = parsePaginationParams(req);
+  const { page = 1, pageSize = 20 } = parsePaginationParams(req.query);
 
   const filteredPublications = (
     typeof search === 'string'
@@ -83,13 +82,17 @@ app.get('/api/v1/publications', (req, res) => {
     pageSize > 0 ? Math.ceil(filteredPublications.length / pageSize) : 0;
 
   res.status(200).json({
-    _links: {
-      self: createSelfLink(req),
-      ...createPaginationLinks(req, {
+    _links: createLinks({
+      self: {
+        url: getFullRequestUrl(req),
+        method: req.method,
+      },
+      paging: {
+        query: req.query,
         page,
         totalPages,
-      }),
-    },
+      },
+    }),
     paging: {
       page,
       pageSize,
@@ -190,45 +193,27 @@ app.get('/api/v1/data-sets/:dataSetId/meta', async (req, res) => {
   const meta = await getDataSetMeta(dataSetId);
 
   return res.status(200).json({
-    _links: {
-      self: createSelfLink(req),
-      ...addHostUrlToLinks(
-        {
-          query: {
-            href: `/api/v1/data-sets/${dataSetId}/query`,
-            method: 'POST',
-          },
-          file: {
-            href: `/api/v1/data-sets/${dataSetId}/file`,
-          },
+    _links: createLinks({
+      self: {
+        url: getFullRequestUrl(req),
+        method: req.method,
+      },
+      links: {
+        query: {
+          href: `/api/v1/data-sets/${dataSetId}/query`,
+          method: 'POST',
         },
-        req,
-      ),
-    },
+        file: {
+          href: `/api/v1/data-sets/${dataSetId}/file`,
+        },
+      },
+    }),
     ...meta,
   });
 });
 
-app.get('/api/v1/data-sets/:dataSetId/query', (req, res) => {
-  const { indicators, sort } = req.query as any;
-
-  const query: DataSetQuery = {
-    facets: pick(req.query as any, [
-      'filters',
-      'geographicLevels',
-      'locations',
-      'timePeriods',
-    ]),
-    indicators,
-    sort,
-  };
-
-  return queryDataSet(query, req, res);
-});
-
-app.post('/api/v1/data-sets/:dataSetId/query', async (req, res) => {
-  await queryDataSet(req.body, req, res);
-});
+app.get('/api/v1/data-sets/:dataSetId/query', queryDataSet);
+app.post('/api/v1/data-sets/:dataSetId/query', queryDataSet);
 
 app.get('/api/v1/data-sets/:dataSetId/file', async (req, res) => {
   const { dataSetId } = req.params;
@@ -295,7 +280,7 @@ app.get('/api/v1/data-sets/:dataSetId/versions', async (req, res) => {
     };
   });
 
-  const { page = 1, pageSize = 20 } = parsePaginationParams(req);
+  const { page = 1, pageSize = 20 } = parsePaginationParams(req.query);
 
   let response: PagedDataSetVersionsViewModel;
 
@@ -304,10 +289,17 @@ app.get('/api/v1/data-sets/:dataSetId/versions', async (req, res) => {
     pageSize > 0 ? Math.ceil(matchingVersions.length / pageSize) : 0;
 
   response = {
-    _links: {
-      self: createSelfLink(req),
-      ...createPaginationLinks(req, { page, totalPages }),
-    },
+    _links: createLinks({
+      self: {
+        url: getFullRequestUrl(req),
+        method: req.method,
+      },
+      paging: {
+        query: req.query,
+        page,
+        totalPages,
+      },
+    }),
     paging: {
       page,
       pageSize,

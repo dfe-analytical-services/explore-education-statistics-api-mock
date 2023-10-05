@@ -1,23 +1,19 @@
 import { Request, Response } from 'express';
-import { mapValues } from 'lodash';
+import { mapValues, omitBy } from 'lodash';
 import NotFoundError from '../errors/NotFoundError';
 import { allDataSetVersions } from '../mocks/dataSetVersions';
 import { DataSetQuery } from '../schema';
+import createLinks from '../utils/createLinks';
 import createPaginationLinks from '../utils/createPaginationLinks';
-import createSelfLink from '../utils/createSelfLink';
 import { dataSetDirs } from '../utils/getDataSetDir';
 import parsePaginationParams from '../utils/parsePaginationParams';
-import { addHostUrlToLinks } from '../utils/responseUtils';
+import { getFullRequestUrl } from '../utils/requestUtils';
 import {
   runDataSetQuery,
   runDataSetQueryToCsv,
 } from '../utils/runDataSetQuery';
 
-export async function queryDataSet(
-  query: DataSetQuery,
-  req: Request,
-  res: Response,
-) {
+export async function queryDataSet(req: Request, res: Response) {
   const { dataSetId } = req.params;
   const { dataSetVersion } = req.query;
 
@@ -34,7 +30,9 @@ export async function queryDataSet(
     throw new NotFoundError();
   }
 
-  const { page = 1, pageSize = 500 } = parsePaginationParams(req);
+  const { page = 1, pageSize = 500 } = parsePaginationParams(req.query);
+
+  const dataSetQuery = parseDataSetQuery(req);
 
   const acceptsCsv = req.accepts('application/json', 'text/csv') === 'text/csv';
 
@@ -42,15 +40,21 @@ export async function queryDataSet(
     const {
       csv,
       paging: { totalPages, totalResults },
-    } = await runDataSetQueryToCsv(dataSetId, query, {
+    } = await runDataSetQueryToCsv(dataSetId, dataSetQuery, {
       page,
       pageSize,
     });
 
     const links = mapValues(
-      createPaginationLinks(req, {
-        page,
-        totalPages,
+      createPaginationLinks({
+        self: {
+          url: getFullRequestUrl(req),
+          method: req.method,
+        },
+        paging: {
+          page,
+          totalPages,
+        },
       }),
       (link) => link.href,
     );
@@ -66,31 +70,61 @@ export async function queryDataSet(
       .send(csv);
   }
 
-  const response = await runDataSetQuery(dataSetId, query, {
+  const response = await runDataSetQuery(dataSetId, dataSetQuery, {
     page,
     pageSize,
     debug: !!req.query.debug,
   });
 
   return res.status(200).send({
-    _links: {
-      self: createSelfLink(req),
-      ...createPaginationLinks(req, {
+    _links: createLinks({
+      self: {
+        url: getFullRequestUrl(req),
+        method: req.method,
+      },
+      paging: {
+        query: req.query,
         page,
         totalPages: response.paging.totalPages,
-      }),
-      ...addHostUrlToLinks(
-        {
-          file: {
-            href: `/api/v1/data-sets/${dataSetId}/file`,
-          },
-          meta: {
-            href: `/api/v1/data-sets/${dataSetId}/meta`,
-          },
+      },
+      links: {
+        file: {
+          href: `/api/v1/data-sets/${dataSetId}/file`,
         },
-        req,
-      ),
-    },
+        meta: {
+          href: `/api/v1/data-sets/${dataSetId}/meta`,
+        },
+      },
+    }),
     ...response,
   });
+}
+
+function parseDataSetQuery(req: Request): DataSetQuery {
+  if (req.method === 'GET') {
+    const {
+      filters,
+      geographicLevels,
+      locations,
+      timePeriods,
+      indicators,
+      sort,
+    } = req.query as any;
+
+    return {
+      facets: omitBy(
+        {
+          filters,
+          geographicLevels,
+          locations,
+          timePeriods,
+        },
+        (value) => value === undefined,
+      ),
+      indicators,
+      sort,
+    };
+  }
+
+  return req.body;
 }
