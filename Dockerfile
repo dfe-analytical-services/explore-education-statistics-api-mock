@@ -8,8 +8,6 @@ RUN npm ci && npm run build
 
 FROM node:18.18-bullseye-slim
 
-LABEL fly_launch_runtime="nodejs"
-
 WORKDIR /app
 
 COPY --from=builder /app/dist ./dist

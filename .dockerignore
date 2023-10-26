@@ -1,7 +1,10 @@
-Dockerfile
 .dockerignore
-node_modules
 .git
 .idea
 .logs
-data-imports
+
+node_modules/
+data-imports/
+
+Dockerfile
+local.settings.json
