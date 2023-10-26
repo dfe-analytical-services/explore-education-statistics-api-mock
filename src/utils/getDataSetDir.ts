@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import {
   apprenticeshipsProvidersDetailedDataSet,
   benchmarkETDetailedReorderedDataSet,
@@ -10,7 +11,9 @@ import {
   spcYearGroupGenderDataSet,
 } from '../mocks/dataSets';
 
-const basePath = 'data';
+const mountedDataPath = '/data-files';
+
+const basePath = fs.existsSync(mountedDataPath) ? mountedDataPath : 'data';
 
 export const dataSetDirs = {
   [spcEthnicityLanguageDataSet.id]: 'spc_pupils_ethnicity_and_language',
