@@ -376,7 +376,7 @@ const errorHandler: ErrorRequestHandler<{}, ApiErrorViewModel | string> = (
   res.status(apiError.status);
 
   if (res.req.accepts('application/json')) {
-    return res.send(this);
+    return res.send(apiError);
   }
 
   if (res.req.accepts('text/html', 'text/*')) {
