@@ -102,23 +102,8 @@ async function extractData(db: Database, csvPath: string) {
 
   try {
     await db.run(`CREATE SEQUENCE data_seq START 1`);
-    await db.run(`CREATE TABLE data(id BIGINT PRIMARY KEY)`);
-
-    const columns = await db.all<{ column_name: string; column_type: string }>(
-      `DESCRIBE SELECT * FROM read_csv_auto('${csvPath}', ALL_VARCHAR=TRUE)`,
-    );
-
-    for (const column of columns) {
-      await db.run(
-        `ALTER TABLE data ADD COLUMN "${column.column_name}" VARCHAR`,
-      );
-    }
-
-    await db.run(
-      `INSERT INTO data 
-        SELECT nextval('data_seq') AS id, * 
-        FROM read_csv_auto('${csvPath}', ALL_VARCHAR=TRUE)`,
-    );
+    await db.run(`CREATE TABLE data AS 
+        SELECT nextval('data_seq') AS id, * FROM read_csv_auto('${csvPath}', ALL_VARCHAR=TRUE)`);
 
     console.timeEnd(timeLabel);
   } catch (err) {
@@ -137,8 +122,8 @@ async function extractMeta(db: Database, metaFilePath: string) {
 
     await extractTimePeriods(db);
     await extractLocations(db, columns);
-    await extractFilters(db, columns, metaFileRows);
-    await extractIndicators(db, columns, metaFileRows);
+    await extractFilters(db, metaFileRows);
+    await extractIndicators(db, metaFileRows);
   } catch (err) {
     console.error(err);
     process.exit(1);
@@ -226,7 +211,6 @@ async function extractLocations(
 
 async function extractFilters(
   db: Database,
-  columns: string[],
   metaFileRows: MetaFileRow[],
 ): Promise<void> {
   const timeLabel = '=> Imported filters meta';
@@ -268,7 +252,6 @@ async function extractFilters(
 
 async function extractIndicators(
   db: Database,
-  columns: string[],
   metaFileRows: MetaFileRow[],
 ): Promise<void> {
   const timeLabel = '=> Imported indicators meta';

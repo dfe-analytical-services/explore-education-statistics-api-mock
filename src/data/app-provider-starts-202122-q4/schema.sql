@@ -10,7 +10,7 @@ CREATE TABLE indicators(id UINTEGER PRIMARY KEY DEFAULT(nextval('indicators_seq'
 CREATE TABLE filters(id UINTEGER PRIMARY KEY DEFAULT(nextval('filters_seq')), "label" VARCHAR NOT NULL, group_label VARCHAR NOT NULL, group_name VARCHAR NOT NULL, group_hint VARCHAR, is_aggregate BOOLEAN DEFAULT(CAST('f' AS BOOLEAN)));
 CREATE TABLE locations(id UINTEGER PRIMARY KEY DEFAULT(nextval('locations_seq')), "level" VARCHAR NOT NULL, code VARCHAR DEFAULT(''), "name" VARCHAR);
 CREATE TABLE time_periods(id UINTEGER PRIMARY KEY DEFAULT(nextval('time_periods_seq')), "year" UINTEGER NOT NULL, identifier VARCHAR, ordering UINTEGER NOT NULL);
-CREATE TABLE "data"(id BIGINT PRIMARY KEY, time_period VARCHAR, time_identifier VARCHAR, geographic_level VARCHAR, country_name VARCHAR, country_code VARCHAR, provider_name VARCHAR, provider_ukprn VARCHAR, apps_level VARCHAR, ssa_t1_desc VARCHAR, starts VARCHAR, achievements VARCHAR);
+CREATE TABLE "data"(id BIGINT, time_period VARCHAR, time_identifier VARCHAR, geographic_level VARCHAR, country_name VARCHAR, country_code VARCHAR, provider_name VARCHAR, provider_ukprn VARCHAR, apps_level VARCHAR, ssa_t1_desc VARCHAR, starts VARCHAR, achievements VARCHAR);
 
 
 

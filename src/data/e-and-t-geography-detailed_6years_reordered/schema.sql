@@ -10,7 +10,7 @@ CREATE TABLE indicators(id UINTEGER PRIMARY KEY DEFAULT(nextval('indicators_seq'
 CREATE TABLE filters(id UINTEGER PRIMARY KEY DEFAULT(nextval('filters_seq')), "label" VARCHAR NOT NULL, group_label VARCHAR NOT NULL, group_name VARCHAR NOT NULL, group_hint VARCHAR, is_aggregate BOOLEAN DEFAULT(CAST('f' AS BOOLEAN)));
 CREATE TABLE locations(id UINTEGER PRIMARY KEY DEFAULT(nextval('locations_seq')), "level" VARCHAR NOT NULL, code VARCHAR DEFAULT(''), "name" VARCHAR);
 CREATE TABLE time_periods(id UINTEGER PRIMARY KEY DEFAULT(nextval('time_periods_seq')), "year" UINTEGER NOT NULL, identifier VARCHAR, ordering UINTEGER NOT NULL);
-CREATE TABLE "data"(id BIGINT PRIMARY KEY, time_period VARCHAR, time_identifier VARCHAR, geographic_level VARCHAR, country_code VARCHAR, country_name VARCHAR, region_code VARCHAR, region_name VARCHAR, lad_code VARCHAR, lad_name VARCHAR, english_devolved_area_code VARCHAR, english_devolved_area_name VARCHAR, ssa_t1_desc VARCHAR, sex VARCHAR, ethnicity_group VARCHAR, notional_nvq_level VARCHAR, e_and_t_aims_enrolments VARCHAR, e_and_t_aims_ach VARCHAR);
+CREATE TABLE "data"(id BIGINT, time_period VARCHAR, time_identifier VARCHAR, geographic_level VARCHAR, country_code VARCHAR, country_name VARCHAR, region_code VARCHAR, region_name VARCHAR, lad_code VARCHAR, lad_name VARCHAR, english_devolved_area_code VARCHAR, english_devolved_area_name VARCHAR, ssa_t1_desc VARCHAR, sex VARCHAR, ethnicity_group VARCHAR, notional_nvq_level VARCHAR, e_and_t_aims_enrolments VARCHAR, e_and_t_aims_ach VARCHAR);
 
 
 
