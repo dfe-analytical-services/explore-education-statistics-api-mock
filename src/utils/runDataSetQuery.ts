@@ -72,8 +72,8 @@ export async function runDataSetQuery(
       paging: {
         page,
         pageSize,
-        totalResults: total,
-        totalPages: pageSize > 0 ? Math.ceil(total / pageSize) : pageSize,
+        totalResults: Number(total),
+        totalPages: Math.ceil(Number(total) / pageSize),
       },
       footnotes: [],
       warnings: state.getWarnings(),
@@ -200,7 +200,7 @@ async function runQuery<TRow extends DataRow = DataRow>(
   );
 
   const totalQuery = `
-      SELECT count(*) AS total
+      SELECT CAST(count(*) AS INTEGER) AS total
       FROM '${tableFile('data')}' AS data
       ${where.fragment ? `WHERE ${where.fragment}` : ''}
   `;
