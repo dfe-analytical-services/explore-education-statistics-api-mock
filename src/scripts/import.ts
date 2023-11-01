@@ -200,9 +200,9 @@ async function extractLocations(
       `INSERT INTO locations(level, code, name)
         SELECT DISTINCT ? AS level, ${cols.code}, ${cols.name}
         FROM data
-        WHERE data.geographic_level = ? AND ${cols.name} != ''
+        WHERE ${cols.name} != ''
         ORDER BY level, ${cols.code}, ${cols.name};`,
-      [geographicLevel, geographicLevelCsvLabels[geographicLevel]],
+      [geographicLevel],
     );
   }
 
