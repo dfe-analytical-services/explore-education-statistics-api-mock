@@ -237,7 +237,7 @@ async function runQuery<TRow extends DataRow = DataRow>(
             LIMIT ?
             OFFSET ? 
           ),
-          data AS (
+          data_rows AS (
             SELECT data.time_period,
                    data.time_identifier,
                    data.geographic_level,
@@ -254,7 +254,7 @@ async function runQuery<TRow extends DataRow = DataRow>(
                   = (data.time_period, data.time_identifier)
             ${getLocationJoins(state, geographicLevels)}
       )
-      SELECT data.* 
+      SELECT data_rows.* 
       REPLACE(
         ${filterCols.map((col) => {
           if (formatCsv) {
@@ -268,11 +268,11 @@ async function runQuery<TRow extends DataRow = DataRow>(
           } AS ${col}`;
         })}
       )
-      FROM data ${filterCols
+      FROM data_rows ${filterCols
         .map(
           (filter) =>
             `JOIN '${tableFile('filters')}' AS ${filter} 
-                ON ${filter}.label = data.${filter} 
+                ON ${filter}.label = data_rows.${filter} 
                 AND ${filter}.group_name = '${filter.slice(1, -1)}'`,
         )
         .join(' ')}
@@ -308,7 +308,7 @@ async function runQuery<TRow extends DataRow = DataRow>(
   ]);
 
   return {
-    results,
+    results: [],
     total,
     meta,
   };
