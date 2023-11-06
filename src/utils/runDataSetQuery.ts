@@ -324,7 +324,8 @@ function getLocationJoins(
       const levelCols = geographicLevelColumns[level];
 
       return `LEFT JOIN '${tableFile('locations')}' AS ${levelAlias} 
-          ON ${levelAlias}.code = data.${levelCols.code} 
+          ON ${levelAlias}.level = '${level}'
+            AND ${levelAlias}.code = data.${levelCols.code} 
             AND ${levelAlias}.name = data.${levelCols.name}`;
     })
     .join('\n');
