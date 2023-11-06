@@ -1,4 +1,4 @@
-import { compact, groupBy, keyBy, noop, zipObject } from 'lodash';
+import { compact, groupBy, keyBy, noop, snakeCase, zipObject } from 'lodash';
 import { ValueOf } from 'type-fest';
 import {
   DataSetQuery,
@@ -355,22 +355,18 @@ async function createLocationsParser(
         join: 'AND' | 'OR';
       }) => {
         const fragment = Object.entries(locationsByLevel)
-          .map(([level, locations]) => {
-            const cols = geographicLevelColumns[level as GeographicLevel];
-
-            return `(${cols.code}, ${cols.name}) ${comparator} (${locations.map(
-              (_) => '(?, ?)',
-            )})`;
-          })
+          .map(
+            ([level, locations]) =>
+              `data.${snakeCase(level)}_id ${comparator} (${placeholders(
+                locations,
+              )})`,
+          )
           .join(` ${join} `);
 
         return `(${fragment})`;
       };
 
-      const params = matchingLocations.flatMap((location) => [
-        location.code,
-        location.name,
-      ]);
+      const params = matchingLocations.map((location) => location.id);
 
       switch (comparator) {
         case 'eq': {

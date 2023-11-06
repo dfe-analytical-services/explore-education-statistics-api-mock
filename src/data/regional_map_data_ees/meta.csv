@@ -1,0 +1,11 @@
+﻿col_name,col_type,label,indicator_grouping,indicator_unit,indicator_dp,filter_hint,filter_grouping_column
+YAG,Filter,Years after graduation,,,,Filter by Years after graduation,
+SECTIONNAME,Filter,Industry section,,,,Filter by Industry section of graduate employment,
+qualification_TR,Filter,Qualification level,,,,Filter by Qualification level,
+subject_name,Filter,Subject studied,,,,Filter by Subject studied,
+trained_in_region,Indicator,Number of graduates that studied in region,Outcomes,,0,,
+living_in_region,Indicator,Number of graduates currently living in region,Outcomes,,0,,
+difference,Indicator,Difference in number of graduates who studied in and are currently living in the region,Outcomes,,0,,
+difference_prop,Indicator,The difference as a proportion,Outcomes,,0,,
+earnings_median,Indicator,Median earnings of the graduates currently living in the region,Earnings,£,0,,
+number_of_providers,Indicator,Number of providers for the combination of subject studied and industry,Outcomes,,0,,

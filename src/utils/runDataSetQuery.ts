@@ -7,7 +7,7 @@ import {
   GeographicLevel,
   PagingViewModel,
 } from '../schema';
-import { DataRow, IndicatorRow } from '../types/dbSchemas';
+import { DataRow, IndicatorRow, LocationRow } from '../types/dbSchemas';
 import { arrayErrors, genericErrors } from '../validations/errors';
 import { tableFile } from './dataSetPaths';
 import { DataSetQueryMeta } from './DataSetQueryMeta';
@@ -21,7 +21,7 @@ import {
 } from './locationConstants';
 import parseDataSetQueryConditions from './parseDataSetQueryConditions';
 import parseTimePeriodCode from './parseTimePeriodCode';
-import { indexPlaceholders } from './queryUtils';
+import { indexPlaceholders, placeholders } from './queryUtils';
 
 const DEBUG_DELIMITER = ' :: ';
 
@@ -90,7 +90,6 @@ export async function runDataSetQuery(
           geographicLevel: csvLabelsToGeographicLevels[result.geographic_level],
           locations: [...meta.geographicLevels].reduce<Dictionary<string>>(
             (acc, level) => {
-              const cols = geographicLevelColumns[level];
               const alias = geographicLevelAlias(level);
               const id = result[`${alias}_id`] as number;
 
@@ -98,9 +97,11 @@ export async function runDataSetQuery(
                 const hashedId = state.locationIdHasher.encode(id);
 
                 acc[level] = debug
-                  ? [hashedId, result[cols.name], result[cols.code]].join(
-                      DEBUG_DELIMITER,
-                    )
+                  ? [
+                      hashedId,
+                      result[`${alias}_name`],
+                      result[`${alias}_code`],
+                    ].join(DEBUG_DELIMITER)
                   : hashedId;
               }
 
@@ -205,11 +206,6 @@ async function runQuery<TRow extends DataRow = DataRow>(
       ${where.fragment ? `WHERE ${where.fragment}` : ''}
   `;
 
-  const locationIdCols = [...geographicLevels].map((level) => {
-    const alias = geographicLevelAlias(level);
-    return `${alias}.id AS ${alias}_id`;
-  });
-
   // We essentially split this query into three parts which are run in sequence:
   // 1. The main query which is offset paginated and gathers the result ids (i.e. a 'deferred' join)
   // 2. A query to select all the relevant metadata (excluding filters)
@@ -242,8 +238,15 @@ async function runQuery<TRow extends DataRow = DataRow>(
                    data.time_identifier,
                    data.geographic_level,
                    ${[
-                     ...locationCols.map((col) => `data.${col}`),
-                     ...locationIdCols,
+                     ...[...geographicLevels].flatMap((level) => {
+                       const levelAlias = geographicLevelAlias(level);
+
+                       return [
+                         `data.${levelAlias}_id`,
+                         `${levelAlias}.code AS ${levelAlias}_code`,
+                         `${levelAlias}.name AS ${levelAlias}_name`,
+                       ];
+                     }),
                      ...filterCols.map((col) => `data.${col} AS ${col}`),
                      ...indicators.map((i) => `data."${i.name}"`),
                    ]}
@@ -321,12 +324,9 @@ function getLocationJoins(
   return [...geographicLevels]
     .map((level) => {
       const levelAlias = geographicLevelAlias(level);
-      const levelCols = geographicLevelColumns[level];
 
-      return `LEFT JOIN '${tableFile('locations')}' AS ${levelAlias} 
-          ON ${levelAlias}.level = '${level}'
-            AND ${levelAlias}.code = data.${levelCols.code} 
-            AND ${levelAlias}.name = data.${levelCols.name}`;
+      return `LEFT JOIN '${tableFile('locations')}' AS ${levelAlias}
+          ON ${levelAlias}.id = data.${levelAlias}_id`;
     })
     .join('\n');
 }
