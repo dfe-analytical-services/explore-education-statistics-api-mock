@@ -35,7 +35,7 @@ export default function run() {
               {
                 filters: {
                   // Access to HE - Total
-                  notEin: ['jAZEyZOq'],
+                  notIn: ['jAZEyZOq'],
                   // Age band - 25 - 49
                   // Age band - 50 and over
                   in: ['0j4ejW6E', 'qv4xd49B'],
