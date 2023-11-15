@@ -1,15 +1,16 @@
 import fs from 'fs-extra';
-import { orderBy, partition, trimEnd } from 'lodash';
+import { orderBy, partition, snakeCase } from 'lodash';
 import path from 'path';
 import { GeographicLevel } from '../schema';
 import { MetaFileRow } from '../types/metaFile';
 import {
   columnsToGeographicLevel,
   geographicLevelColumns,
-  geographicLevelCsvLabels,
 } from '../utils/locationConstants';
 import Database from '../utils/Database';
 import parseCsv from '../utils/parseCsv';
+
+process.env.NODE_ENV = 'development';
 
 const projectRoot = path.resolve(__dirname, '../..');
 const dataImportsDir = path.resolve(projectRoot, 'data-imports');
@@ -73,8 +74,15 @@ async function runImport() {
 
     const db = new Database();
 
+    const columns = (
+      await db.all<{ column_name: string }>(
+        `DESCRIBE SELECT * FROM '${dataFilePath}'`,
+      )
+    ).map((col) => col.column_name);
+
     await extractData(db, dataFilePath);
-    await extractMeta(db, metaFilePath);
+    await extractMeta(db, metaFilePath, columns);
+    await extractNormalisedData(db, columns);
 
     await db.run(`EXPORT DATABASE '${outputDir}' (FORMAT PARQUET, CODEC ZSTD)`);
 
@@ -112,14 +120,14 @@ async function extractData(db: Database, csvPath: string) {
   }
 }
 
-async function extractMeta(db: Database, metaFilePath: string) {
+async function extractMeta(
+  db: Database,
+  metaFilePath: string,
+  columns: string[],
+) {
   const metaFileRows = await parseCsv<MetaFileRow>(metaFilePath);
 
   try {
-    const columns = (
-      await db.all<{ column_name: string }>(`DESCRIBE data;`)
-    ).map((col) => col.column_name);
-
     await extractTimePeriods(db);
     await extractLocations(db, columns);
     await extractFilters(db, metaFileRows);
@@ -286,4 +294,88 @@ async function extractIndicators(
   }
 
   console.timeEnd(timeLabel);
+}
+
+async function extractNormalisedData(db: Database, columns: string[]) {
+  const locationColumns = columns.filter(
+    (column) => columnsToGeographicLevel[column],
+  );
+
+  const filterColumns = (
+    await db.all<{ group_name: string }>(
+      'SELECT DISTINCT group_name FROM filters',
+    )
+  ).map((row) => row.group_name);
+
+  const indicatorColumns = (
+    await db.all<{ name: string }>('SELECT name FROM indicators')
+  ).map((row) => row.name);
+
+  const geographicLevels = locationColumns.reduce<GeographicLevel[]>(
+    (acc, column) => {
+      if (!acc.includes(columnsToGeographicLevel[column])) {
+        acc.push(columnsToGeographicLevel[column]);
+      }
+
+      return acc;
+    },
+    [],
+  );
+
+  try {
+    await db.run(
+      `CREATE TABLE data_normalised(
+      id UINTEGER PRIMARY KEY DEFAULT nextval('data_seq'),
+      time_period VARCHAR,
+      time_identifier VARCHAR,
+      geographic_level VARCHAR,
+      ${[
+        ...geographicLevels.map((level) => `${snakeCase(level)}_id UINTEGER`),
+        ...filterColumns.map((column) => `"${column}" UINTEGER`),
+        ...indicatorColumns.map((column) => `"${column}" VARCHAR`),
+      ]}
+    )`,
+    );
+
+    await db.run(
+      `
+        INSERT INTO data_normalised
+        SELECT
+            data.id,
+            data.time_period,
+            data.time_identifier,
+            data.geographic_level,
+            ${[
+              ...geographicLevels.map(
+                (level) => `${snakeCase(level)}.id AS ${snakeCase(level)}_id`,
+              ),
+              ...filterColumns.map((column) => `"${column}".id AS "${column}"`),
+              ...indicatorColumns.map((column) => `data."${column}"`),
+            ]}
+        FROM data
+        ${[...geographicLevels]
+          .map((level) => {
+            const levelAlias = snakeCase(level);
+            const levelCols = geographicLevelColumns[level];
+
+            return `LEFT JOIN locations AS ${levelAlias}
+              ON ${levelAlias}.level = '${level}'
+              AND ${levelAlias}.code = data.${levelCols.code} 
+              AND ${levelAlias}.name = data.${levelCols.name}`;
+          })
+          .join('\n')}
+        ${[...filterColumns]
+          .map(
+            (column) =>
+              `LEFT JOIN filters AS "${column}" 
+              ON "${column}".label = data."${column}" 
+              AND "${column}".group_name = '${column}'`,
+          )
+          .join('\n')}
+        `,
+    );
+  } catch (err) {
+    console.error(err);
+    process.exit(1);
+  }
 }
