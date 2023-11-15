@@ -1,0 +1,7 @@
+"col_name","col_type","label","indicator_grouping","indicator_unit","indicator_dp","filter_hint","filter_grouping_column"
+"ssa_t1_desc","Filter","Sector subject area (tier 1)","","","","",""
+"sex","Filter","Sex","","","","",""
+"ethnicity_group","Filter","Ethnicity group","","","","",""
+"notional_nvq_level","Filter","Detailed level","","","","",""
+"e_and_t_aims_enrolments","Indicator","Aim Enrolments (Aug to Apr)","","","0","",""
+"e_and_t_aims_ach","Indicator","Aim Achievements (Aug to Apr)","","","0","",""

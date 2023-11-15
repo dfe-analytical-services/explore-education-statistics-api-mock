@@ -1,5 +1,5 @@
 import fs from 'fs-extra';
-import { orderBy, partition, snakeCase } from 'lodash';
+import { orderBy, partition, trimEnd } from 'lodash';
 import path from 'path';
 import { GeographicLevel } from '../schema';
 import { MetaFileRow } from '../types/metaFile';
@@ -10,8 +10,6 @@ import {
 } from '../utils/locationConstants';
 import Database from '../utils/Database';
 import parseCsv from '../utils/parseCsv';
-
-process.env.NODE_ENV = 'development';
 
 const projectRoot = path.resolve(__dirname, '../..');
 const dataImportsDir = path.resolve(projectRoot, 'data-imports');
@@ -75,16 +73,8 @@ async function runImport() {
 
     const db = new Database();
 
-    const columns = (
-      await db.all<{ column_name: string }>(
-        `DESCRIBE SELECT * FROM '${dataFilePath}'`,
-      )
-    ).map((col) => col.column_name);
-
     await extractData(db, dataFilePath);
-    await extractMeta(db, metaFilePath, columns);
-
-    await finaliseData(db, columns);
+    await extractMeta(db, metaFilePath);
 
     await db.run(`EXPORT DATABASE '${outputDir}' (FORMAT PARQUET, CODEC ZSTD)`);
 
@@ -112,7 +102,7 @@ async function extractData(db: Database, csvPath: string) {
 
   try {
     await db.run(`CREATE SEQUENCE data_seq START 1`);
-    await db.run(`CREATE TABLE data_temp AS 
+    await db.run(`CREATE TABLE data AS 
         SELECT nextval('data_seq') AS id, * FROM read_csv_auto('${csvPath}', ALL_VARCHAR=TRUE)`);
 
     console.timeEnd(timeLabel);
@@ -122,14 +112,14 @@ async function extractData(db: Database, csvPath: string) {
   }
 }
 
-async function extractMeta(
-  db: Database,
-  metaFilePath: string,
-  columns: string[],
-) {
+async function extractMeta(db: Database, metaFilePath: string) {
   const metaFileRows = await parseCsv<MetaFileRow>(metaFilePath);
 
   try {
+    const columns = (
+      await db.all<{ column_name: string }>(`DESCRIBE data;`)
+    ).map((col) => col.column_name);
+
     await extractTimePeriods(db);
     await extractLocations(db, columns);
     await extractFilters(db, metaFileRows);
@@ -158,7 +148,7 @@ async function extractTimePeriods(db: Database): Promise<void> {
     SELECT DISTINCT
           time_period AS year, 
           time_identifier AS identifier
-    FROM data_temp
+    FROM data
     ORDER BY time_period ASC, time_identifier ASC;
   `);
 
@@ -209,11 +199,7 @@ async function extractLocations(
     await db.run(
       `INSERT INTO locations(level, code, name)
         SELECT DISTINCT ? AS level, ${cols.code}, ${cols.name}
-<<<<<<< Updated upstream
         FROM data
-=======
-        FROM data_temp
->>>>>>> Stashed changes
         WHERE ${cols.name} != ''
         ORDER BY level, ${cols.code}, ${cols.name};`,
       [geographicLevel],
@@ -254,7 +240,7 @@ async function extractFilters(
         SELECT label, $1, $2, $3, CASE WHEN label = 'Total' THEN TRUE END
         FROM (
             SELECT DISTINCT ${filter.col_name} AS label
-            FROM data_temp
+            FROM data 
             ORDER BY ${filter.col_name}
         );`,
       [filter.label, filter.col_name, filter.filter_hint],
@@ -300,65 +286,4 @@ async function extractIndicators(
   }
 
   console.timeEnd(timeLabel);
-}
-
-async function finaliseData(db: Database, columns: string[]) {
-  const [locationColumns, otherColumns] = partition(
-    columns,
-    (column) => columnsToGeographicLevel[column],
-  );
-
-  const geographicLevels = locationColumns.reduce<GeographicLevel[]>(
-    (acc, column) => {
-      if (!acc.includes(columnsToGeographicLevel[column])) {
-        acc.push(columnsToGeographicLevel[column]);
-      }
-
-      return acc;
-    },
-    [],
-  );
-
-  try {
-    await db.run(`CREATE TABLE data(
-      id UINTEGER PRIMARY KEY DEFAULT nextval('data_seq'),
-      ${[
-        ...geographicLevels.map((level) => `${snakeCase(level)}_id UINTEGER`),
-        ...otherColumns.map((column) => `"${column}" VARCHAR`),
-      ]}
-    )`);
-
-    await db.run(
-      `
-        INSERT INTO data
-        SELECT
-            data_temp.id,
-            ${[
-              ...geographicLevels.map(
-                (level) => `${snakeCase(level)}.id AS ${snakeCase(level)}_id`,
-              ),
-              ...otherColumns.map((column) => `data_temp."${column}"`),
-            ]}
-        FROM data_temp
-        ${[...geographicLevels]
-          .map((level) => {
-            const levelAlias = snakeCase(level);
-            const levelCols = geographicLevelColumns[level];
-
-            return `LEFT JOIN locations AS ${levelAlias} 
-              ON ${levelAlias}.code = data_temp.${levelCols.code} 
-              AND ${levelAlias}.name = data_temp.${levelCols.name}`;
-          })
-          .join('\n')}`,
-      [],
-      {
-        debug: true,
-      },
-    );
-
-    // await db.run('DROP TABLE data_temp');
-  } catch (err) {
-    console.error(err);
-    process.exit(1);
-  }
 }
