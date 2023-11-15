@@ -8,7 +8,7 @@ export interface DataRow {
 }
 
 export interface TimePeriodRow {
-  year: number;
+  year: string;
   identifier: string;
 }
 

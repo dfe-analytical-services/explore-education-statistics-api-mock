@@ -74,11 +74,12 @@ async function getTimePeriodsMeta(
 
   return timePeriods.map((timePeriod) => {
     const code = parseTimePeriodCode(timePeriod.identifier);
+    const year = parseInt(timePeriod.year);
 
     return {
       code,
-      label: formatTimePeriodLabel(code, timePeriod.year),
-      year: timePeriod.year,
+      label: formatTimePeriodLabel(code, year),
+      year,
     };
   });
 }
