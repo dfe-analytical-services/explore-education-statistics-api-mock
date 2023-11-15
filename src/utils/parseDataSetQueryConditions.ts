@@ -358,9 +358,9 @@ async function createLocationsParser(
           .map(([level, locations]) => {
             const cols = geographicLevelColumns[level as GeographicLevel];
 
-            return `(${cols.code}, ${cols.name}) ${comparator} (${locations.map(
-              (_) => '(?, ?)',
-            )})`;
+            return `(data.${cols.code}, data.${
+              cols.name
+            }) ${comparator} (${locations.map((_) => '(?, ?)')})`;
           })
           .join(` ${join} `);
 
