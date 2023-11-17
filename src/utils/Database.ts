@@ -31,7 +31,7 @@ export default class Database {
    */
   async run(
     query: string,
-    params: (string | number)[] = [],
+    params: any[] = [],
     options?: QueryOptions,
   ): Promise<void> {
     const start = performance.now();
