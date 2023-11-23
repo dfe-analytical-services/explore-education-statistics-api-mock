@@ -3,8 +3,6 @@ import type { Callback, TableData } from 'duckdb';
 import { noop } from 'lodash';
 import formatQuery from './formatQuery';
 
-const timerLabel = 'Ran query in';
-
 interface DebugOptions {
   /**
    * Show placeholders in the logged query. If not true, the
@@ -36,15 +34,17 @@ export default class Database {
     params: (string | number)[] = [],
     options?: QueryOptions,
   ): Promise<void> {
+    const start = performance.now();
+
     if (this.canDebug(options)) {
-      console.time(timerLabel);
       this.logQuery(query, params, options.debug);
     }
 
     await new Promise((resolve, reject) => {
       this.db.run(query, ...params, ((err, result) => {
         if (this.canDebug(options)) {
-          console.timeEnd(timerLabel);
+          const end = performance.now();
+          console.log(`Ran query in ${end - start} ms`);
         }
 
         if (err) {
@@ -64,15 +64,17 @@ export default class Database {
     params: any[] = [],
     options?: QueryOptions,
   ): Promise<TResult[]> {
+    const start = performance.now();
+
     if (this.canDebug(options)) {
-      console.time(timerLabel);
       this.logQuery(query, params, options.debug);
     }
 
     return await new Promise((resolve, reject) => {
       this.db.all(query, ...params, ((err, result) => {
         if (this.canDebug(options)) {
-          console.timeEnd(timerLabel);
+          const end = performance.now();
+          console.log(`Ran query in ${end - start} ms`);
         }
 
         if (err) {
@@ -92,15 +94,17 @@ export default class Database {
     params: any[] = [],
     options?: QueryOptions,
   ): Promise<TResult> {
+    const start = performance.now();
+
     if (this.canDebug(options)) {
-      console.time(timerLabel);
       this.logQuery(query, params, options.debug);
     }
 
     return await new Promise((resolve, reject) => {
       this.db.all(query, ...params, ((err, result) => {
         if (this.canDebug(options)) {
-          console.timeEnd(timerLabel);
+          const end = performance.now();
+          console.log(`Ran query in ${end - start} ms`);
         }
 
         if (err) {
