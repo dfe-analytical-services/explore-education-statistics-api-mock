@@ -1,4 +1,4 @@
-import { compact, keyBy, mapValues, snakeCase, uniq } from 'lodash';
+import { compact, keyBy, mapValues, orderBy, snakeCase, uniq } from 'lodash';
 import Papa from 'papaparse';
 import { ValidationError } from '../errors';
 import {
@@ -46,11 +46,6 @@ export async function runDataSetQuery(
       },
     );
 
-    const unquotedFilterCols = meta.filterCols.map((col) => col.slice(1, -1));
-    const indicatorsById = keyBy(meta.indicators, (indicator) =>
-      indicator.name.toString(),
-    );
-
     if (results.length === 0) {
       state.prependWarning('facets', {
         message:
@@ -58,6 +53,13 @@ export async function runDataSetQuery(
         code: 'results.empty',
       });
     }
+
+    const unquotedFilterCols = meta.filterCols
+      .map((col) => col.slice(1, -1))
+      .sort();
+
+    const indicators = orderBy(meta.indicators, (indicator) => indicator.name);
+    const geographicLevels = [...meta.geographicLevels].sort();
 
     const hashedId = (id: number | string, hasher: IdHasher) => {
       if (debug) {
@@ -88,7 +90,7 @@ export async function runDataSetQuery(
             year: Number(result.time_period),
           },
           geographicLevel: csvLabelsToGeographicLevels[result.geographic_level],
-          locations: [...meta.geographicLevels].reduce<Dictionary<string>>(
+          locations: geographicLevels.reduce<Dictionary<string>>(
             (acc, level) => {
               const cols = geographicLevelColumns[level];
               const alias = geographicLevelAlias(level);
@@ -108,9 +110,10 @@ export async function runDataSetQuery(
             },
             {},
           ),
-          values: mapValues(indicatorsById, (indicator) =>
-            result[indicator.name].toString(),
-          ),
+          values: indicators.reduce<Dictionary<string>>((acc, indicator) => {
+            acc[indicator.name] = result[indicator.name].toString();
+            return acc;
+          }, {}),
         };
       }),
     };
