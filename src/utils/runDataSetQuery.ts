@@ -385,7 +385,7 @@ function getOrderings(
     });
   }
 
-  return sorts;
+  return uniq(sorts);
 }
 
 async function getLocationColumns({
