@@ -146,12 +146,14 @@ async function extractTimePeriods(db: Database): Promise<void> {
 
   await db.run('CREATE SEQUENCE time_periods_seq START 1;');
   await db.run(
-    `CREATE TABLE time_periods(
-        id UINTEGER PRIMARY KEY DEFAULT nextval('time_periods_seq'),
-        year VARCHAR NOT NULL,
-        identifier VARCHAR,
-        ordering UINTEGER NOT NULL
-     );`,
+    `
+        CREATE TABLE time_periods(
+            id UINTEGER PRIMARY KEY DEFAULT nextval('time_periods_seq'),
+            year VARCHAR NOT NULL,
+            identifier VARCHAR,
+            ordering UINTEGER NOT NULL
+        )
+      `,
   );
 
   const timePeriods = await db.all<{ year: string; identifier: string }>(`
@@ -195,13 +197,15 @@ async function extractLocations(
 
   await db.run('CREATE SEQUENCE locations_seq START 1;');
   await db.run(
-    `CREATE TABLE locations(
-       id UINTEGER PRIMARY KEY DEFAULT nextval('locations_seq'),
-       level VARCHAR NOT NULL,
-       code VARCHAR DEFAULT '',
-       name VARCHAR,
-       ordering UINTEGER
-     );`,
+    `
+        CREATE TABLE locations(
+            id UINTEGER PRIMARY KEY DEFAULT nextval('locations_seq'),
+            level VARCHAR NOT NULL,
+            code VARCHAR DEFAULT '',
+            name VARCHAR,
+            ordering UINTEGER
+        )
+     `,
   );
 
   for (const geographicLevel of geographicLevels) {
@@ -261,15 +265,17 @@ async function extractFilters(
 
   await db.run('CREATE SEQUENCE filters_seq START 1;');
   await db.run(
-    `CREATE TABLE filters(
-       id UINTEGER PRIMARY KEY DEFAULT nextval('filters_seq'),
-       label VARCHAR NOT NULL,
-       group_label VARCHAR NOT NULL,
-       group_name VARCHAR NOT NULL,
-       group_hint VARCHAR,
-       is_aggregate BOOLEAN DEFAULT FALSE,
-       ordering UINTEGER
-     );`,
+    `
+        CREATE TABLE filters(
+            id UINTEGER PRIMARY KEY DEFAULT nextval('filters_seq'),
+            label VARCHAR NOT NULL,
+            group_label VARCHAR NOT NULL,
+            group_name VARCHAR NOT NULL,
+            group_hint VARCHAR,
+            is_aggregate BOOLEAN DEFAULT FALSE,
+            ordering UINTEGER
+       )
+     `,
   );
 
   const filters = orderBy(
@@ -330,13 +336,15 @@ async function extractIndicators(
 
   await db.run('CREATE SEQUENCE indicators_seq START 1;');
   await db.run(
-    `CREATE TABLE indicators(
-       id UINTEGER PRIMARY KEY DEFAULT nextval('indicators_seq'),
-       label VARCHAR NOT NULL,
-       name VARCHAR NOT NULL,
-       decimal_places INT,
-       unit VARCHAR
-     );`,
+    `
+      CREATE TABLE indicators(
+          id UINTEGER PRIMARY KEY DEFAULT nextval('indicators_seq'),
+          label VARCHAR NOT NULL,
+          name VARCHAR NOT NULL,
+          decimal_places INT,
+          unit VARCHAR
+      )
+     `,
   );
 
   const indicators = orderBy(
@@ -345,14 +353,19 @@ async function extractIndicators(
   );
 
   for (const indicator of indicators) {
+    const params = [
+      indicator.label,
+      indicator.col_name,
+      indicator.indicator_dp,
+      indicator.indicator_unit,
+    ];
+
     await db.run(
-      `INSERT INTO indicators(label, name, decimal_places, unit) VALUES ($1, $2, $3, $4);`,
-      [
-        indicator.label,
-        indicator.col_name,
-        indicator.indicator_dp,
-        indicator.indicator_unit,
-      ],
+      `
+        INSERT INTO indicators(label, name, decimal_places, unit) 
+        VALUES (${placeholders(params)})
+      `,
+      params,
     );
   }
 
@@ -447,7 +460,7 @@ async function extractNormalisedData(db: Database, columns: string[]) {
               AND "${column}".group_name = '${column}'`,
           )
           .join('\n')}
-        `,
+      `,
     );
 
     console.timeEnd(timeLabel);
