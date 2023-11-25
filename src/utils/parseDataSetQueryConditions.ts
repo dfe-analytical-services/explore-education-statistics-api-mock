@@ -16,11 +16,9 @@ import {
 import { FilterRow, LocationRow } from '../types/dbSchemas';
 import { genericErrors } from '../validations/errors';
 import DataSetQueryState from './DataSetQueryState';
+import { filterIdColumn, locationIdColumn } from './dataSetQueryUtils';
 import { parseIdHashes, parseIdHashesAndCodes } from './idParsers';
-import {
-  geographicLevelColumns,
-  geographicLevelCsvLabels,
-} from './locationConstants';
+import { geographicLevelCsvLabels } from './locationConstants';
 import { placeholders } from './queryUtils';
 import { timePeriodCodeIdentifiers } from './timePeriodConstants';
 
@@ -255,18 +253,28 @@ async function createFiltersParser(
       const groupedMatchingItems = () =>
         groupBy(matchingItems, (item) => item.group_name);
 
-      const params = matchingItems.map((item) => item.label);
+      const params = matchingItems.map((item) => item.id);
 
       // Have to be more careful to handle negative cases as we
       // need matching filter items to construct the conditions.
       switch (comparator) {
         case 'eq':
           return params.length > 0
-            ? { fragment: `data."${matchingItems[0].group_name}" = ?`, params }
+            ? {
+                fragment: `data."${filterIdColumn(
+                  matchingItems[0].group_name,
+                )}" = ?`,
+                params,
+              }
             : { fragment: 'false' };
         case 'notEq':
           return params.length > 0
-            ? { fragment: `data."${matchingItems[0].group_name}" != ?`, params }
+            ? {
+                fragment: `data."${filterIdColumn(
+                  matchingItems[0].group_name,
+                )}" != ?`,
+                params,
+              }
             : { fragment: 'true' };
         case 'in':
           return params.length > 0
@@ -274,7 +282,9 @@ async function createFiltersParser(
                 fragment: `(${Object.entries(groupedMatchingItems())
                   .map(
                     ([group, items]) =>
-                      `data."${group}" IN (${placeholders(items)})`,
+                      `data."${filterIdColumn(group)}" IN (${placeholders(
+                        items,
+                      )})`,
                   )
                   .join(' AND ')})`,
                 params,
@@ -286,7 +296,9 @@ async function createFiltersParser(
                 fragment: `(${Object.entries(groupedMatchingItems())
                   .map(
                     ([group, items]) =>
-                      `data."${group}" NOT IN (${placeholders(items)})`,
+                      `data."${filterIdColumn(group)}" NOT IN (${placeholders(
+                        items,
+                      )})`,
                   )
                   .join(' AND ')})`,
                 params,
@@ -351,32 +363,29 @@ async function createLocationsParser(
         comparator,
         join,
       }: {
-        comparator: 'IN' | 'NOT IN';
-        join: 'AND' | 'OR';
+        comparator: '=' | '!=' | 'IN' | 'NOT IN';
+        join: string;
       }) => {
         const fragment = Object.entries(locationsByLevel)
           .map(([level, locations]) => {
-            const cols = geographicLevelColumns[level as GeographicLevel];
+            const locationPlaceholders =
+              locations.length > 0 ? `(${placeholders(locations)})` : '?';
+            const locationIdCol = locationIdColumn(level as GeographicLevel);
 
-            return `(data.${cols.code}, data.${
-              cols.name
-            }) ${comparator} (${locations.map((_) => '(?, ?)')})`;
+            return `(data."${locationIdCol}" ${comparator} ${locationPlaceholders})`;
           })
           .join(` ${join} `);
 
         return `(${fragment})`;
       };
 
-      const params = matchingLocations.flatMap((location) => [
-        location.code,
-        location.name,
-      ]);
+      const params = matchingLocations.map((location) => location.id);
 
       switch (comparator) {
         case 'eq': {
           return params.length > 0
             ? {
-                fragment: createFragment({ comparator: 'IN', join: 'OR' }),
+                fragment: createFragment({ comparator: '=', join: 'OR' }),
                 params,
               }
             : { fragment: 'false' };
@@ -384,7 +393,7 @@ async function createLocationsParser(
         case 'notEq':
           return params.length > 0
             ? {
-                fragment: createFragment({ comparator: 'NOT IN', join: 'AND' }),
+                fragment: createFragment({ comparator: '!=', join: 'AND' }),
                 params,
               }
             : { fragment: 'true' };

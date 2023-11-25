@@ -6,5 +6,9 @@ export type TableName =
   | 'locations';
 
 export function tableFile(dataSetDir: string, table: TableName) {
+  if (table === 'data') {
+    return `${dataSetDir}/data_normalised.parquet`;
+  }
+
   return `${dataSetDir}/${table}.parquet`;
 }

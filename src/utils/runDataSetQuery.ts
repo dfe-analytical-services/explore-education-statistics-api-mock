@@ -1,4 +1,4 @@
-import { compact, keyBy, mapValues, orderBy, snakeCase, uniq } from 'lodash';
+import { compact, keyBy, orderBy, uniq } from 'lodash';
 import Papa from 'papaparse';
 import { ValidationError } from '../errors';
 import {
@@ -7,13 +7,24 @@ import {
   GeographicLevel,
   PagingViewModel,
 } from '../schema';
-import { DataRow, IndicatorRow } from '../types/dbSchemas';
+import {
+  DataRow,
+  FilterRow,
+  IndicatorRow,
+  LocationRow,
+} from '../types/dbSchemas';
 import { arrayErrors, genericErrors } from '../validations/errors';
 import { tableFile } from './dataSetPaths';
 import { DataSetQueryMeta } from './DataSetQueryMeta';
 import DataSetQueryState from './DataSetQueryState';
+import {
+  filterIdColumn,
+  filterOrderColumn,
+  locationIdColumn,
+  locationOrderColumn,
+} from './dataSetQueryUtils';
 import getDataSetDir from './getDataSetDir';
-import { createIndicatorIdHasher, IdHasher } from './idHashers';
+import { createIndicatorIdHasher } from './idHashers';
 import { parseIdLikeStrings } from './idParsers';
 import {
   csvLabelsToGeographicLevels,
@@ -21,7 +32,7 @@ import {
 } from './locationConstants';
 import parseDataSetQueryConditions from './parseDataSetQueryConditions';
 import parseTimePeriodCode from './parseTimePeriodCode';
-import { indexPlaceholders } from './queryUtils';
+import { indexPlaceholders, placeholders } from './queryUtils';
 
 const DEBUG_DELIMITER = ' :: ';
 
@@ -38,7 +49,7 @@ export async function runDataSetQuery(
   const state = new DataSetQueryState(dataSetDir);
 
   try {
-    const { results, total, meta } = await runQuery<DataRow>(
+    const { results, resultsMeta, total, queryMeta } = await runQuery<DataRow>(
       state,
       { ...query, page, pageSize },
       {
@@ -54,21 +65,12 @@ export async function runDataSetQuery(
       });
     }
 
-    const unquotedFilterCols = meta.filterCols
-      .map((col) => col.slice(1, -1))
-      .sort();
-
-    const indicators = orderBy(meta.indicators, (indicator) => indicator.name);
-    const geographicLevels = [...meta.geographicLevels].sort();
-
-    const hashedId = (id: number | string, hasher: IdHasher) => {
-      if (debug) {
-        const [idPart, label] = id.toString().split(DEBUG_DELIMITER, 2);
-        return hasher.encode(Number(idPart)) + DEBUG_DELIMITER + label;
-      }
-
-      return hasher.encode(Number(id));
-    };
+    const filterCols = queryMeta.filterCols.sort();
+    const indicators = orderBy(
+      queryMeta.indicators,
+      (indicator) => indicator.name,
+    );
+    const geographicLevels = [...queryMeta.geographicLevels].sort();
 
     return {
       paging: {
@@ -81,8 +83,25 @@ export async function runDataSetQuery(
       warnings: state.getWarnings(),
       results: results.map((result) => {
         return {
-          filters: unquotedFilterCols.reduce<Dictionary<string>>((acc, col) => {
-            acc[col] = hashedId(result[col], state.filterIdHasher);
+          filters: filterCols.reduce<Dictionary<string>>((acc, col) => {
+            const id = Number(result[filterIdColumn(col)]);
+
+            if (Number.isNaN(id)) {
+              return acc;
+            }
+
+            const hashedId = state.filterIdHasher.encode(id);
+
+            if (debug && resultsMeta) {
+              const filter = resultsMeta.filters[id];
+
+              acc[col] = filter
+                ? hashedId + DEBUG_DELIMITER + filter.label
+                : hashedId;
+            } else {
+              acc[col] = hashedId;
+            }
+
             return acc;
           }, {}),
           timePeriod: {
@@ -92,19 +111,21 @@ export async function runDataSetQuery(
           geographicLevel: csvLabelsToGeographicLevels[result.geographic_level],
           locations: geographicLevels.reduce<Dictionary<string>>(
             (acc, level) => {
-              const cols = geographicLevelColumns[level];
-              const alias = geographicLevelAlias(level);
-              const id = result[`${alias}_id`] as number;
+              const id = Number(result[locationIdColumn(level)]);
 
-              if (id) {
-                const hashedId = state.locationIdHasher.encode(id);
+              if (Number.isNaN(id)) {
+                return acc;
+              }
 
-                acc[level] = debug
-                  ? [hashedId, result[cols.name], result[cols.code]].join(
+              const location = resultsMeta.locations[id];
+              const hashedId = state.locationIdHasher.encode(id);
+
+              acc[level] =
+                debug && location
+                  ? [hashedId, location.name, location.code].join(
                       DEBUG_DELIMITER,
                     )
                   : hashedId;
-              }
 
               return acc;
             },
@@ -136,14 +157,49 @@ export async function runDataSetQueryToCsv(
   const state = new DataSetQueryState(dataSetDir);
 
   try {
-    const { results, total } = await runQuery<DataRow>(
+    const { results, resultsMeta, queryMeta, total } = await runQuery<DataRow>(
       state,
       { ...query, page, pageSize },
       { formatCsv: true },
     );
 
+    const rows = results.map((result) => {
+      const row: DataRow = {
+        time_period: result.time_period,
+        time_identifier: result.time_identifier,
+        geographic_level: result.geographic_level,
+      };
+
+      queryMeta.geographicLevels.forEach((level) => {
+        const locationId = Number(result[locationIdColumn(level)]);
+        const location = resultsMeta.locations[locationId];
+
+        const levelCols = geographicLevelColumns[level];
+
+        if (location) {
+          row[levelCols.code] = location.code;
+          row[levelCols.name] = location.name;
+        }
+      });
+
+      queryMeta.filterCols.forEach((filterCol) => {
+        const filterId = Number(result[filterIdColumn(filterCol)]);
+        const filter = resultsMeta.filters[filterId];
+
+        if (filter) {
+          row[filterCol] = filter.label;
+        }
+      });
+
+      queryMeta.indicators.forEach((indicator) => {
+        row[indicator.name] = result[indicator.name];
+      });
+
+      return row;
+    });
+
     return {
-      csv: Papa.unparse(results),
+      csv: Papa.unparse(rows),
       paging: {
         page,
         pageSize,
@@ -156,6 +212,14 @@ export async function runDataSetQueryToCsv(
   }
 }
 
+type FilterResultMeta = Pick<FilterRow, 'id' | 'label' | 'group_name'>;
+type LocationResultMeta = Pick<LocationRow, 'id' | 'code' | 'name'>;
+
+interface DataSetResultsMeta {
+  filters: Record<number, FilterResultMeta>;
+  locations: Record<number, LocationResultMeta>;
+}
+
 interface RunQueryOptions {
   debug?: boolean;
   formatCsv?: boolean;
@@ -163,8 +227,9 @@ interface RunQueryOptions {
 
 interface RunQueryReturn<TRow extends DataRow = DataRow> {
   results: TRow[];
+  resultsMeta: DataSetResultsMeta;
   total: number;
-  meta: DataSetQueryMeta;
+  queryMeta: DataSetQueryMeta;
 }
 
 async function runQuery<TRow extends DataRow = DataRow>(
@@ -189,7 +254,7 @@ async function runQuery<TRow extends DataRow = DataRow>(
       getIndicators(state, indicatorIds),
     ]);
 
-  const meta: DataSetQueryMeta = {
+  const queryMeta: DataSetQueryMeta = {
     geographicLevels,
     locationCols,
     filterCols,
@@ -208,77 +273,42 @@ async function runQuery<TRow extends DataRow = DataRow>(
       ${where.fragment ? `WHERE ${where.fragment}` : ''}
   `;
 
-  const locationIdCols = [...geographicLevels].map((level) => {
-    const alias = geographicLevelAlias(level);
-    return `${alias}.id AS ${alias}_id`;
-  });
+  const locationIdCols = [...geographicLevels].map(
+    (level) => `data."${locationIdColumn(level)}"`,
+  );
 
-  // We essentially split this query into three parts which are run in sequence:
+  // We essentially split this query into two sub-queries:
   // 1. The main query which is offset paginated and gathers the result ids (i.e. a 'deferred' join)
-  // 2. A query to select all the relevant metadata (excluding filters)
-  // 3. A query to append the filter metadata separately
-  //
-  // We append the filter metadata separately we generate joins to the `filters` table on
-  // each filter column for the filter item IDs. This can be very expensive if there are lots
-  // of them, so by only doing this on the paginated results, we can limit this overhead
-  // substantially and the query performs a lot better.
-  //
-  // We could alternatively fetch all the filter items into memory and pair these
-  // up with the filter column values in our application level code. There might
-  // some other approaches too, but I just settled on the current implementation
-  // for now as it seemed to provide adequate response times (< 1s).
+  // 2. A query to actually get the data using the ids
+  // This is more efficient than a single query as offset pagination is really expensive,
+  // especially if working with lots of columns. Once we know the rows we're interested in (via
+  // their ids), we can select on all the columns we want (without the performance penalty).
   const resultsQuery = `
       WITH
           data_ids AS (
             SELECT data.id
             FROM '${tableFile('data')}' AS data
             JOIN '${tableFile('time_periods')}' AS time_periods
-              ON (time_periods.year, time_periods.identifier)
-              = (data.time_period, data.time_identifier)
+                ON (time_periods.year, time_periods.identifier)
+                = (data.time_period, data.time_identifier)
             ${where.fragment ? `WHERE ${where.fragment}` : ''}
-            ORDER BY ${getOrderings(query, state, filterCols, geographicLevels)}
+            ORDER BY ${getOrderings(query, filterCols, geographicLevels)}
             LIMIT ?
-            OFFSET ? 
-          ),
-          data AS (
-            SELECT data.time_period,
-                   data.time_identifier,
-                   data.geographic_level,
-                   ${[
-                     ...locationCols.map((col) => `data.${col}`),
-                     ...locationIdCols,
-                     ...filterCols.map((col) => `data.${col} AS ${col}`),
-                     ...indicators.map((i) => `data."${i.name}"`),
-                   ]}
-            FROM '${tableFile('data')}' AS data
-            JOIN data_ids ON data_ids.id = data.id
-            JOIN '${tableFile('time_periods')}' AS time_periods
-              ON (time_periods.year, time_periods.identifier) 
-                  = (data.time_period, data.time_identifier)
-            ${getLocationJoins(state, geographicLevels)}
-      )
-      SELECT data.* 
-      REPLACE(
-        ${filterCols.map((col) => {
-          if (formatCsv) {
-            return `${col}.label AS ${col}`;
-          }
-
-          return `${
-            debug
-              ? `concat(${col}.id, '${DEBUG_DELIMITER}', ${col}.label)`
-              : `${col}.id`
-          } AS ${col}`;
-        })}
-      )
-      FROM data ${filterCols
-        .map(
-          (filter) =>
-            `JOIN '${tableFile('filters')}' AS ${filter} 
-                ON ${filter}.label = data.${filter} 
-                AND ${filter}.group_name = '${filter.slice(1, -1)}'`,
-        )
-        .join(' ')}
+            OFFSET ?
+          )
+      SELECT data.time_period,
+             data.time_identifier,
+             data.geographic_level,
+             ${[
+               ...locationIdCols,
+               ...filterCols.map((col) => `data."${filterIdColumn(col)}"`),
+               ...indicators.map((i) => `data."${i.name}"`),
+             ]}
+      FROM '${tableFile('data')}' AS data
+      JOIN data_ids ON data_ids.id = data.id
+      JOIN '${tableFile('time_periods')}' AS time_periods
+        ON (time_periods.year, time_periods.identifier) = (data.time_period, data.time_identifier)
+      ORDER BY ${getOrderings(query, filterCols, geographicLevels)}
   `;
 
   // Tried cursor/keyset pagination, but it's probably too difficult to implement.
@@ -310,33 +340,30 @@ async function runQuery<TRow extends DataRow = DataRow>(
     }),
   ]);
 
+  let resultsMeta: DataSetResultsMeta = {
+    filters: {},
+    locations: {},
+  };
+
+  if (debug || formatCsv) {
+    resultsMeta = await getResultsMeta({
+      state,
+      results,
+      geographicLevels,
+      filterCols,
+    });
+  }
+
   return {
     results,
+    resultsMeta,
     total,
-    meta,
+    queryMeta,
   };
-}
-
-function getLocationJoins(
-  { tableFile }: DataSetQueryState,
-  geographicLevels: Set<GeographicLevel>,
-): string {
-  return [...geographicLevels]
-    .map((level) => {
-      const levelAlias = geographicLevelAlias(level);
-      const levelCols = geographicLevelColumns[level];
-
-      return `LEFT JOIN '${tableFile('locations')}' AS ${levelAlias} 
-          ON ${levelAlias}.level = '${level}'
-            AND ${levelAlias}.code = data.${levelCols.code} 
-            AND ${levelAlias}.name = data.${levelCols.name}`;
-    })
-    .join('\n');
 }
 
 function getOrderings(
   query: DataSetQuery,
-  state: DataSetQueryState,
   filterCols: string[],
   geographicLevels: Set<GeographicLevel>,
 ): string[] {
@@ -350,7 +377,7 @@ function getOrderings(
   }
 
   // Remove quotes wrapping column name
-  const allowedFilterCols = new Set(filterCols.map((col) => col.slice(1, -1)));
+  const allowedFilterCols = new Set([...filterCols]);
 
   const sorts: string[] = [];
   const invalidSorts = new Set<string>();
@@ -365,12 +392,12 @@ function getOrderings(
 
     if (geographicLevels.has(sort.name as GeographicLevel)) {
       const level = sort.name as GeographicLevel;
-      sorts.push(`${geographicLevelColumns[level].name} ${direction}`);
+      sorts.push(`data."${locationOrderColumn(level)}" ${direction}`);
       return;
     }
 
     if (allowedFilterCols.has(sort.name)) {
-      sorts.push(`${sort.name} ${direction}`);
+      sorts.push(`data."${filterOrderColumn(sort.name)}" ${direction}`);
       return;
     }
 
@@ -429,7 +456,7 @@ async function getFilterColumns({
         SELECT DISTINCT group_name
         FROM '${tableFile(dataSetDir, 'filters')}';
     `)
-  ).map((row) => `"${row.group_name}"`);
+  ).map((row) => row.group_name);
 }
 
 async function getIndicators(
@@ -477,6 +504,73 @@ async function getIndicators(
   return indicators;
 }
 
-function geographicLevelAlias(level: GeographicLevel): string {
-  return snakeCase(level);
+async function getResultsMeta<TRow extends DataRow>({
+  state,
+  results,
+  geographicLevels,
+  filterCols,
+}: {
+  state: DataSetQueryState;
+  results: TRow[];
+  geographicLevels: Set<GeographicLevel>;
+  filterCols: string[];
+}): Promise<DataSetResultsMeta> {
+  const ids = results.reduce(
+    (acc, row) => {
+      for (const geographicLevel of geographicLevels) {
+        const locationId = row[locationIdColumn(geographicLevel)];
+
+        if (typeof locationId === 'number') {
+          acc.locationIds.add(locationId);
+        }
+      }
+
+      for (const filterCol of filterCols) {
+        const filterId = row[filterIdColumn(filterCol)];
+
+        if (typeof filterId === 'number') {
+          acc.filterIds.add(filterId);
+        }
+      }
+
+      return acc;
+    },
+    {
+      filterIds: new Set<number>(),
+      locationIds: new Set<number>(),
+    },
+  );
+
+  const { db, tableFile } = state;
+
+  const filterIds = [...ids.filterIds];
+  const locationIds = [...ids.locationIds];
+
+  const [locationRows, filterRows] = await Promise.all([
+    locationIds.length > 0
+      ? db.all<LocationResultMeta>(
+          `
+            SELECT id, name, code 
+            FROM '${tableFile('locations')}'
+            WHERE id IN (${placeholders([...locationIds])})
+          `,
+          locationIds,
+        )
+      : Promise.resolve([]),
+    filterIds.length > 0
+      ? db.all<FilterResultMeta>(
+          `
+            SELECT id, label, group_name 
+            FROM '${tableFile('filters')}'
+            WHERE id IN (${placeholders([...filterIds])})
+          `,
+          filterIds,
+        )
+      : Promise.resolve([]),
+  ]);
+
+  return {
+    locations: keyBy(locationRows, (row) => row.id),
+    filters: keyBy(filterRows, (row) => row.id),
+  };
 }
