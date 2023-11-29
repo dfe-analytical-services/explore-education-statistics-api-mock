@@ -88,6 +88,20 @@ async function runImport() {
 
     await db.run(`EXPORT DATABASE '${outputDir}' (FORMAT PARQUET, CODEC ZSTD)`);
 
+    // Change to relative paths as EXPORT DATABASE outputs absolute paths on the host machine
+    const loadSqlFilePath = `${outputDir}/load.sql`;
+    const loadSqlFileContents = await fs.promises.readFile(loadSqlFilePath, {
+      encoding: 'utf-8',
+    });
+
+    await fs.promises.writeFile(
+      loadSqlFilePath,
+      loadSqlFileContents.replaceAll(`${outputDir}/`, ''),
+      {
+        encoding: 'utf-8',
+      },
+    );
+
     await fs.copy(metaFilePath, `${outputDir}/meta.csv`);
     await db.run(
       `
