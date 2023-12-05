@@ -20,7 +20,7 @@ import {
   PagedDataSetVersionsViewModel,
 } from './schema';
 import createLinks from './utils/createLinks';
-import getDataSetDetails from './utils/getDataSetDetails';
+import getDataSetVersionDetails from './utils/getDataSetVersionDetails';
 import { dataSetDirs } from './utils/getDataSetDir';
 import {
   getDataSetCsvFileStream,
@@ -131,10 +131,8 @@ app.get('/api/v1/publications/:publicationId/data-sets', async (req, res) => {
     .filter((dataSet) => dataSet.publication.id === publication.id)
     .map((dataSet) => dataSet.viewModel);
 
-  const dataSets = await getDataSetDetails(matchingDataSets);
-
   return res.status(200).json(
-    dataSets.map(({ _links, ...dataSet }) => {
+    matchingDataSets.map(({ _links, ...dataSet }) => {
       return {
         ...dataSet,
         _links: addHostUrlToLinks(_links, req),
@@ -165,11 +163,10 @@ app.get('/api/v1/data-sets/:dataSetId', async (req, res) => {
   }
 
   const { viewModel } = matchingDataSet;
-  const [{ _links, ...dataSet }] = await getDataSetDetails([viewModel]);
 
   return res.status(200).json({
-    ...dataSet,
-    _links: addHostUrlToLinks(_links, req),
+    ...viewModel,
+    _links: addHostUrlToLinks(viewModel._links, req),
   });
 });
 
@@ -271,9 +268,9 @@ app.get('/api/v1/data-sets/:dataSetId/versions', async (req, res) => {
     throw new NotFoundError();
   }
 
-  const matchingVersions: DataSetVersionViewModel[] = allDataSetVersions[
-    dataSetId
-  ].map((version) => {
+  const matchingVersions = (
+    await getDataSetVersionDetails(dataSetId, allDataSetVersions[dataSetId])
+  ).map((version) => {
     return {
       _links: addHostUrlToLinks(version._links, req),
       ...omit(version, ['changes', '_links']),
@@ -333,7 +330,14 @@ app.get(
       throw new NotFoundError();
     }
 
-    return res.status(200).json(matchingVersion);
+    const [{ _links, ...version }] = await getDataSetVersionDetails(dataSetId, [
+      matchingVersion,
+    ]);
+
+    return res.status(200).json({
+      ...version,
+      _links: addHostUrlToLinks(_links, req),
+    });
   },
 );
 

@@ -121,7 +121,7 @@ async function getLocationsMeta(
       acc[location.level].push({
         id: hasher.encode(location.id),
         code: location.code,
-        name: location.name,
+        label: location.name,
       });
 
       return acc;
@@ -167,7 +167,7 @@ async function getFiltersMeta(
 
     filtersMeta.push({
       label: group.label,
-      name: group.name,
+      id: group.name,
       hint: group.hint,
       options: items.map((item) => {
         return {

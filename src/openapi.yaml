@@ -811,11 +811,7 @@ components:
         - title
         - description
         - status
-        - version
-        - timePeriods
-        - geographicLevels
-        - filters
-        - indicators
+        - latestVersion
         - lastPublished
         - _links
       properties:
@@ -972,6 +968,10 @@ components:
         - number
         - type
         - notes
+        - timePeriods
+        - geographicLevels
+        - filters
+        - indicators
         - published
         - _links
       additionalProperties: false
@@ -1034,80 +1034,168 @@ components:
           type: array
           description: A list of changes relating to this version.
           items:
-            $ref: '#/components/schemas/DataSetVersionChangeViewModel'
+            $ref: '#/components/schemas/DataSetChangeViewModel'
         _links:
           $ref: '#/components/schemas/LinksViewModel'
-    DataSetVersionChangeViewModel:
+    DataSetChangeViewModel:
       type: object
       description: A specific change made as part of the data set version.
+      discriminator:
+        propertyName: metaType
+        mapping:
+          Filter: '#/components/schemas/DataSetChangeFilterViewModel'
+          FilterOption: '#/components/schemas/DataSetChangeFilterOptionViewModel'
+          Indicator: '#/components/schemas/DataSetChangeIndicatorViewModel'
+          Location: '#/components/schemas/DataSetChangeLocationViewModel'
+          TimePeriod: '#/components/schemas/DataSetChangeTimePeriodViewModel'
+      oneOf:
+        - $ref: '#/components/schemas/DataSetChangeFilterViewModel'
+        - $ref: '#/components/schemas/DataSetChangeFilterOptionViewModel'
+        - $ref: '#/components/schemas/DataSetChangeIndicatorViewModel'
+        - $ref: '#/components/schemas/DataSetChangeLocationViewModel'
+        - $ref: '#/components/schemas/DataSetChangeTimePeriodViewModel'
+    DataSetChangeFilterViewModel:
+      type: object
+      description: A change made to filter meta.
       additionalProperties: false
       required:
         - id
         - type
-        - targetType
+        - metaType
       properties:
         id:
           type: string
           description: The ID of the change.
           format: uuid
         type:
+          $ref: '#/components/schemas/DataSetChangeType'
+        metaType:
           type: string
-          description: |-
-            The type of change that was made. This can be:
-
-            - `Add` - the addition of something e.g. a new facet
-            - `Update` - an update to something e.g. a facet's label or other attribute
-            - `Delete` - the removal of something e.g. a facet
-          enum:
-            - Add
-            - Update
-            - Delete
-        targetType:
-          type: string
-          description: The target type of the change.
+          description: The meta type changed.
           enum:
             - Filter
-            - FilterItem
-            - Indicator
-            - Location
-            - TimePeriod
-        current:
-          type: object
-          description: The current state of the change target.
-          oneOf:
-            - $ref: '#/components/schemas/DataSetVersionChangeFilterViewModel'
-            - $ref: '#/components/schemas/DataSetVersionChangeFilterItemViewModel'
-            - $ref: '#/components/schemas/DataSetVersionChangeIndicatorViewModel'
-            - $ref: '#/components/schemas/DataSetVersionChangeLocationViewModel'
-            - $ref: '#/components/schemas/DataSetVersionChangeTimePeriodViewModel'
-        previous:
-          type: object
-          description: |-
-            The previous state of the change target (if applicable). Only fields that were 
-            changed are included.
-          additionalProperties: true
-    DataSetVersionChangeFilterViewModel:
+        currentState:
+          $ref: '#/components/schemas/DataSetChangeFilterState'
+        previousState:
+          $ref: '#/components/schemas/DataSetChangeFilterState'
+    DataSetChangeFilterOptionViewModel:
       type: object
-      description: A change to a filter.
+      description: A change made to filter option meta.
       additionalProperties: false
       required:
-        - label
-        - name
+        - id
+        - type
+        - metaType
       properties:
-        label:
+        id:
           type: string
-          description: The human-readable label of the filter.
-        name:
+          description: The ID of the change.
+          format: uuid
+        type:
+          $ref: '#/components/schemas/DataSetChangeType'
+        metaType:
           type: string
-          description: The name of the filter as it appears in the underlying data file.
-    DataSetVersionChangeFilterItemViewModel:
+          description: The meta type changed.
+          enum:
+            - FilterOption
+        currentState:
+          $ref: '#/components/schemas/DataSetChangeFilterOptionState'
+        previousState:
+          $ref: '#/components/schemas/DataSetChangeFilterOptionState'
+    DataSetChangeIndicatorViewModel:
       type: object
-      description: A change to a filter item.
+      description: A change made to indicator meta.
+      additionalProperties: false
+      required:
+        - id
+        - type
+        - metaType
+      properties:
+        id:
+          type: string
+          description: The ID of the change.
+          format: uuid
+        type:
+          $ref: '#/components/schemas/DataSetChangeType'
+        metaType:
+          type: string
+          description: The meta type changed.
+          enum:
+            - Indicator
+        currentState:
+          $ref: '#/components/schemas/DataSetChangeIndicatorState'
+        previousState:
+          $ref: '#/components/schemas/DataSetChangeIndicatorState'
+    DataSetChangeLocationViewModel:
+      type: object
+      description: A change made to location meta.
+      additionalProperties: false
+      required:
+        - id
+        - type
+        - metaType
+      properties:
+        id:
+          type: string
+          description: The ID of the change.
+          format: uuid
+        type:
+          $ref: '#/components/schemas/DataSetChangeType'
+        metaType:
+          type: string
+          description: The meta type changed.
+          enum:
+            - Location
+        currentState:
+          $ref: '#/components/schemas/DataSetChangeLocationState'
+        previousState:
+          $ref: '#/components/schemas/DataSetChangeLocationState'
+    DataSetChangeTimePeriodViewModel:
+      type: object
+      description: A change made to time period meta.
+      additionalProperties: false
+      required:
+        - id
+        - type
+        - metaType
+      properties:
+        id:
+          type: string
+          description: The ID of the change.
+          format: uuid
+        type:
+          $ref: '#/components/schemas/DataSetChangeType'
+        metaType:
+          type: string
+          description: The meta type changed.
+          enum:
+            - TimePeriod
+        currentState:
+          $ref: '#/components/schemas/DataSetChangeTimePeriodState'
+        previousState:
+          $ref: '#/components/schemas/DataSetChangeTimePeriodState'
+    DataSetChangeFilterState:
+      type: object
+      description: The state of a filter during a change.
       additionalProperties: false
       required:
         - id
         - label
-        - filterName
+      properties:
+        id:
+          type: string
+          description: The ID of the filter.
+        label:
+          type: string
+          description: The human-readable label of the filter.
+    DataSetChangeFilterOptionState:
+      type: object
+      description: A state of a filter option during a change.
+      additionalProperties: false
+      required:
+        - id
+        - label
+        - filterId
       properties:
         id:
           type: string
@@ -1118,17 +1206,16 @@ components:
         isAggregate:
           type: boolean
           description: Whether the filter item is an aggregate (i.e. 'all' or a 'total') of the other filter items.
-        filterName:
+        filterId:
           type: string
-          description: The name of the filter the filter item belongs to.
-    DataSetVersionChangeIndicatorViewModel:
+          description: The ID of the filter the filter item belongs to.
+    DataSetChangeIndicatorState:
       type: object
-      description: A change to an indicator.
+      description: The state of an indicator during a change.
       additionalProperties: false
       required:
         - id
         - label
-        - name
         - unit
       properties:
         id:
@@ -1137,30 +1224,27 @@ components:
         label:
           type: string
           description: The human-readable label of the indicator.
-        name:
-          type: string
-          description: The name of the indicator as it appears in the underlying data file.
         unit:
           $ref: '#/components/schemas/Unit'
         decimalPlaces:
           type: integer
           format: int32
           description: The optimal number of decimal places that the indicator should use when displayed.
-    DataSetVersionChangeLocationViewModel:
+    DataSetChangeLocationState:
       type: object
-      description: A change to a location.
+      description: The state of a location during a change.
       required:
         - id
-        - name
+        - label
         - code
         - level
       properties:
         id:
           type: string
           description: The ID of the location.
-        name:
+        label:
           type: string
-          description: The name of the location.
+          description: The label of the location.
         code:
           type: string
           description: The code of the location (if applicable).
@@ -1169,14 +1253,13 @@ components:
       additionalProperties:
         type: string
         description: Other properties of the location.
-    DataSetVersionChangeTimePeriodViewModel:
+    DataSetChangeTimePeriodState:
       type: object
-      description: A change to a time period.
+      description: The state of a time period during a change.
       additionalProperties: false
       required:
         - code
         - year
-        - label
       properties:
         code:
           $ref: '#/components/schemas/TimePeriodCode'
@@ -1184,9 +1267,18 @@ components:
           type: integer
           format: int32
           description: The year that the time period relates to.
-        label:
-          type: string
-          description: The time period in human-readable format.
+    DataSetChangeType:
+      type: string
+      description: |-
+        The type of change that was made. This can be:
+
+          - `Add` - the addition of something e.g. a new facet
+          - `Update` - an update to something e.g. a facet's label or other attribute
+          - `Delete` - the removal of something e.g. a facet
+      enum:
+        - Add
+        - Update
+        - Delete
     ErrorDictionary:
       type: object
       description: |-
@@ -1217,7 +1309,7 @@ components:
           description: Further details about the error.
           additionalProperties: true
       additionalProperties: false
-    FilterItemMetaViewModel:
+    FilterOptionMetaViewModel:
       type: object
       description: A filterable facet (or characteristic) of a data point.
       required:
@@ -1239,9 +1331,9 @@ components:
       description: |-
         A group of filterable facets (or characteristics) for the data. This is composed of filter items.
       required:
+        - id
         - label
         - options
-        - name
       properties:
         id:
           type: string
@@ -1254,12 +1346,9 @@ components:
           description: The human-readable label describing the filter.
         options:
           type: array
-          description: The filter item options belonging to this filter.
+          description: The filter items belonging to this filter.
           items:
-            $ref: '#/components/schemas/FilterItemMetaViewModel'
-        name:
-          type: string
-          description: The name of the filter as it appears in the underlying data file.
+            $ref: '#/components/schemas/FilterOptionMetaViewModel'
       additionalProperties: false
     FootnoteViewModel:
       type: object
@@ -1304,7 +1393,6 @@ components:
         - id
         - label
         - unit
-        - name
       properties:
         id:
           type: string
@@ -1314,9 +1402,6 @@ components:
           description: The human-readable label of the indicator.
         unit:
           $ref: '#/components/schemas/Unit'
-        name:
-          type: string
-          description: The name of the indicator as it appears in the underlying data file.
         decimalPlaces:
           type: integer
           format: int32
@@ -1368,15 +1453,15 @@ components:
       description: A geographic location e.g. a country, region, local authority, etc.
       required:
         - id
-        - name
+        - label
         - code
       properties:
         id:
           type: string
           description: The ID of the location.
-        name:
+        label:
           type: string
-          description: The name of the location.
+          description: The label of the location.
         code:
           type: string
           description: |-

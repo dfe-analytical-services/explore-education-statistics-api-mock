@@ -1,17 +1,19 @@
-import { DataSetViewModel } from '../schema';
+import { DataSetVersionViewModelMock } from '../mocks/dataSetVersions';
+import { DataSetVersionViewModel } from '../schema';
 import Database from './Database';
 import { tableFile } from './dataSetPaths';
 import getDataSetDir from './getDataSetDir';
 
-export default async function getDataSetDetails(
-  dataSets: Omit<DataSetViewModel, 'indicators' | 'filters'>[],
-): Promise<DataSetViewModel[]> {
+export default async function getDataSetVersionDetails(
+  dataSetId: string,
+  dataSetVersions: DataSetVersionViewModelMock[],
+): Promise<DataSetVersionViewModel[]> {
   const db = new Database();
 
-  const mappedDataSets: DataSetViewModel[] = [];
+  const mappedVersions: DataSetVersionViewModel[] = [];
 
-  for (const dataSet of dataSets) {
-    const dataSetDir = getDataSetDir(dataSet.id);
+  for (const dataSet of dataSetVersions) {
+    const dataSetDir = getDataSetDir(dataSetId);
 
     const [filters, indicators] = await Promise.all([
       db.all<{ group_label: string }>(
@@ -25,12 +27,12 @@ export default async function getDataSetDetails(
       ),
     ]);
 
-    mappedDataSets.push({
+    mappedVersions.push({
       ...dataSet,
       filters: filters.map((filter) => filter.group_label),
       indicators: indicators.map((indicator) => indicator.label),
     });
   }
 
-  return mappedDataSets;
+  return mappedVersions;
 }

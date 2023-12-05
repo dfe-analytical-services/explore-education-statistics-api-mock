@@ -13,14 +13,9 @@ export const spcEthnicityLanguageDataSet = createDataSet({
   description:
     'Number of pupils in state-funded nursery, primary, secondary and special schools, non-maintained special schools and pupil referral units by language and ethnicity.',
   status: 'Active',
-  version: '2.0',
-  geographicLevels: ['National', 'Local authority', 'Regional'],
+  latestVersion: '2.0',
   lastPublished: '2022-12-01T09:30:00Z',
   publication: spcPublication,
-  timePeriods: {
-    start: '2015/16',
-    end: '2021/22',
-  },
 });
 
 export const spcYearGroupGenderDataSet = createDataSet({
@@ -29,14 +24,9 @@ export const spcYearGroupGenderDataSet = createDataSet({
   description:
     'Number of pupils in state-funded nursery, primary, secondary and special schools, non-maintained special schools, pupil referral units and independent schools by national curriculum year and gender.',
   status: 'Active',
-  version: '1.0',
-  geographicLevels: ['National', 'Local authority', 'Regional'],
+  latestVersion: '1.0',
   lastPublished: '2022-12-01T09:30:00Z',
   publication: spcPublication,
-  timePeriods: {
-    start: '2015/16',
-    end: '2021/22',
-  },
 });
 
 export const pupilAttendanceWeeklyDataSet = createDataSet({
@@ -45,14 +35,9 @@ export const pupilAttendanceWeeklyDataSet = createDataSet({
   description:
     'Weekly local authority, regional and national attendance since 12 September 2022, including reasons for absence. Figures are provided for state-funded primary, secondary and special schools. Totals for all schools are also included that include estimates for non-response.',
   status: 'Active',
-  version: '1.0',
-  geographicLevels: ['National', 'Local authority', 'Regional'],
+  latestVersion: '1.0',
   lastPublished: '2022-12-01T09:30:00Z',
   publication: pupilAbsencePublication,
-  timePeriods: {
-    start: '2022 Week 37',
-    end: '2022 Week 49',
-  },
 });
 
 export const leoIndustryRegionalDataSet = createDataSet({
@@ -61,14 +46,9 @@ export const leoIndustryRegionalDataSet = createDataSet({
   description:
     'Graduate populations of UK domiciled graduates of English Higher Education Institutions (HEIs), Alternative Providers (APs) and Further Education Colleges (FECs), one, three, five and ten years after graduation (YAG), 2019/20 tax year',
   status: 'Active',
-  version: '1.0',
-  geographicLevels: ['Regional'],
+  latestVersion: '1.0',
   lastPublished: '2022-12-01T09:30:00Z',
   publication: leoPublication,
-  timePeriods: {
-    start: '2019-20',
-    end: '2019-20',
-  },
 });
 
 export const apprenticeshipsProvidersDetailedDataSet = createDataSet({
@@ -77,14 +57,9 @@ export const apprenticeshipsProvidersDetailedDataSet = createDataSet({
   description:
     'Breakdowns of apprenticeship starts and achievements by individual provider',
   status: 'Active',
-  version: '1.0',
-  geographicLevels: ['Provider'],
+  latestVersion: '1.0',
   lastPublished: '2022-12-01T09:30:00Z',
   publication: apprenticeshipsPublication,
-  timePeriods: {
-    start: '2016/17',
-    end: '2021/22',
-  },
 });
 
 export const benchmarkETDetailedReorderedDataSet = createDataSet({
@@ -92,14 +67,9 @@ export const benchmarkETDetailedReorderedDataSet = createDataSet({
   title: 'ET Detailed Reordered',
   description: '',
   status: 'Active',
-  version: '1.0',
-  geographicLevels: ['National', 'Local authority', 'Regional'],
+  latestVersion: '1.0',
   lastPublished: '2022-12-01T09:30:00Z',
   publication: benchmarkPublication,
-  timePeriods: {
-    start: '2015/16',
-    end: '2021/22',
-  },
 });
 
 export const benchmarkQuaDataSet = createDataSet({
@@ -107,14 +77,9 @@ export const benchmarkQuaDataSet = createDataSet({
   title: 'QUA01',
   description: '',
   status: 'Active',
-  version: '1.0',
-  geographicLevels: ['National'],
+  latestVersion: '1.0',
   lastPublished: '2022-12-01T09:30:00Z',
   publication: benchmarkPublication,
-  timePeriods: {
-    start: '2013/14',
-    end: '2018/19',
-  },
 });
 
 export const benchmarkNatDataSet = createDataSet({
@@ -122,14 +87,9 @@ export const benchmarkNatDataSet = createDataSet({
   title: 'NAT01',
   description: '',
   status: 'Active',
-  version: '1.0',
-  geographicLevels: ['National'],
+  latestVersion: '1.0',
   lastPublished: '2022-12-01T09:30:00Z',
   publication: benchmarkPublication,
-  timePeriods: {
-    start: '2013/14',
-    end: '2018/19',
-  },
 });
 
 export const benchmarkLtdDmDataSet = createDataSet({
@@ -137,14 +97,9 @@ export const benchmarkLtdDmDataSet = createDataSet({
   title: 'LTD DM',
   description: '',
   status: 'Active',
-  version: '1.0',
-  geographicLevels: ['School'],
+  latestVersion: '1.0',
   lastPublished: '2022-12-01T09:30:00Z',
   publication: benchmarkPublication,
-  timePeriods: {
-    start: '2014/15',
-    end: '2015/15',
-  },
 });
 
 export const allDataSets: DataSet[] = [
@@ -191,6 +146,9 @@ function createDataSet({
         },
         versions: {
           href: `/api/v1/data-sets/${dataSet.id}/versions`,
+        },
+        latestVersion: {
+          href: `/api/v1/data-sets/${dataSet.id}/versions/${dataSet.latestVersion}`,
         },
       },
     },
