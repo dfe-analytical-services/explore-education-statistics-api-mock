@@ -135,6 +135,9 @@ function createDataSet({
         self: {
           href: `/api/v1/data-sets/${dataSet.id}`,
         },
+        publication: {
+          href: `/api/v1/publications/${publication.id}`,
+        },
         query: {
           href: `/api/v1/data-sets/${dataSet.id}/query`,
         },
