@@ -538,6 +538,248 @@ components:
           format: int32
         errors:
           $ref: '#/components/schemas/ErrorDictionary'
+    ChangeViewModel:
+      type: object
+      description: A specific change made as part of the data set version.
+      discriminator:
+        propertyName: metaType
+        mapping:
+          Filter: '#/components/schemas/ChangeFilterViewModel'
+          FilterOption: '#/components/schemas/ChangeFilterOptionViewModel'
+          Indicator: '#/components/schemas/ChangeIndicatorViewModel'
+          Location: '#/components/schemas/ChangeLocationViewModel'
+          TimePeriod: '#/components/schemas/ChangeTimePeriodViewModel'
+      oneOf:
+        - $ref: '#/components/schemas/ChangeFilterViewModel'
+        - $ref: '#/components/schemas/ChangeFilterOptionViewModel'
+        - $ref: '#/components/schemas/ChangeIndicatorViewModel'
+        - $ref: '#/components/schemas/ChangeLocationViewModel'
+        - $ref: '#/components/schemas/ChangeTimePeriodViewModel'
+    ChangeFilterViewModel:
+      type: object
+      description: A change made to filter meta.
+      additionalProperties: false
+      required:
+        - id
+        - type
+        - metaType
+      properties:
+        id:
+          type: string
+          description: The ID of the change.
+          format: uuid
+        type:
+          $ref: '#/components/schemas/ChangeType'
+        metaType:
+          type: string
+          description: The meta type changed.
+          enum:
+            - Filter
+        currentState:
+          $ref: '#/components/schemas/ChangeFilterState'
+        previousState:
+          $ref: '#/components/schemas/ChangeFilterState'
+    ChangeFilterOptionViewModel:
+      type: object
+      description: A change made to filter option meta.
+      additionalProperties: false
+      required:
+        - id
+        - type
+        - metaType
+      properties:
+        id:
+          type: string
+          description: The ID of the change.
+          format: uuid
+        type:
+          $ref: '#/components/schemas/ChangeType'
+        metaType:
+          type: string
+          description: The meta type changed.
+          enum:
+            - FilterOption
+        currentState:
+          $ref: '#/components/schemas/ChangeFilterOptionState'
+        previousState:
+          $ref: '#/components/schemas/ChangeFilterOptionState'
+    ChangeIndicatorViewModel:
+      type: object
+      description: A change made to indicator meta.
+      additionalProperties: false
+      required:
+        - id
+        - type
+        - metaType
+      properties:
+        id:
+          type: string
+          description: The ID of the change.
+          format: uuid
+        type:
+          $ref: '#/components/schemas/ChangeType'
+        metaType:
+          type: string
+          description: The meta type changed.
+          enum:
+            - Indicator
+        currentState:
+          $ref: '#/components/schemas/ChangeIndicatorState'
+        previousState:
+          $ref: '#/components/schemas/ChangeIndicatorState'
+    ChangeLocationViewModel:
+      type: object
+      description: A change made to location meta.
+      additionalProperties: false
+      required:
+        - id
+        - type
+        - metaType
+      properties:
+        id:
+          type: string
+          description: The ID of the change.
+          format: uuid
+        type:
+          $ref: '#/components/schemas/ChangeType'
+        metaType:
+          type: string
+          description: The meta type changed.
+          enum:
+            - Location
+        currentState:
+          $ref: '#/components/schemas/ChangeLocationState'
+        previousState:
+          $ref: '#/components/schemas/ChangeLocationState'
+    ChangeTimePeriodViewModel:
+      type: object
+      description: A change made to time period meta.
+      additionalProperties: false
+      required:
+        - id
+        - type
+        - metaType
+      properties:
+        id:
+          type: string
+          description: The ID of the change.
+          format: uuid
+        type:
+          $ref: '#/components/schemas/ChangeType'
+        metaType:
+          type: string
+          description: The meta type changed.
+          enum:
+            - TimePeriod
+        currentState:
+          $ref: '#/components/schemas/ChangeTimePeriodState'
+        previousState:
+          $ref: '#/components/schemas/ChangeTimePeriodState'
+    ChangeFilterState:
+      type: object
+      description: The state of a filter during a change.
+      additionalProperties: false
+      required:
+        - id
+        - label
+      properties:
+        id:
+          type: string
+          description: The ID of the filter.
+        label:
+          type: string
+          description: The human-readable label of the filter.
+    ChangeFilterOptionState:
+      type: object
+      description: A state of a filter option during a change.
+      additionalProperties: false
+      required:
+        - id
+        - label
+        - filterId
+      properties:
+        id:
+          type: string
+          description: The ID of the filter item.
+        label:
+          type: string
+          description: The human-readable label describing the filter item.
+        isAggregate:
+          type: boolean
+          description: Whether the filter item is an aggregate (i.e. 'all' or a 'total') of the other filter items.
+        filterId:
+          type: string
+          description: The ID of the filter the filter item belongs to.
+    ChangeIndicatorState:
+      type: object
+      description: The state of an indicator during a change.
+      additionalProperties: false
+      required:
+        - id
+        - label
+        - unit
+      properties:
+        id:
+          type: string
+          description: The ID of the indicator.
+        label:
+          type: string
+          description: The human-readable label of the indicator.
+        unit:
+          $ref: '#/components/schemas/Unit'
+        decimalPlaces:
+          type: integer
+          format: int32
+          description: The optimal number of decimal places that the indicator should use when displayed.
+    ChangeLocationState:
+      type: object
+      description: The state of a location during a change.
+      required:
+        - id
+        - label
+        - code
+        - level
+      properties:
+        id:
+          type: string
+          description: The ID of the location.
+        label:
+          type: string
+          description: The label of the location.
+        code:
+          type: string
+          description: The code of the location (if applicable).
+        level:
+          $ref: '#/components/schemas/GeographicLevel'
+      additionalProperties:
+        type: string
+        description: Other properties of the location.
+    ChangeTimePeriodState:
+      type: object
+      description: The state of a time period during a change.
+      additionalProperties: false
+      required:
+        - code
+        - year
+      properties:
+        code:
+          $ref: '#/components/schemas/TimePeriodCode'
+        year:
+          type: integer
+          format: int32
+          description: The year that the time period relates to.
+    ChangeType:
+      type: string
+      description: |-
+        The type of change that was made. This can be:
+
+          - `Add` - the addition of something e.g. a new facet
+          - `Update` - an update to something e.g. a facet's label or other attribute
+          - `Delete` - the removal of something e.g. a facet
+      enum:
+        - Add
+        - Update
+        - Delete
     DataSetQuery:
       type: object
       description: A query for data from a data set matching specific facets.
@@ -996,7 +1238,7 @@ components:
             - Minor
         status:
           type: string
-          description: |- 
+          description: |-
             The version's status. Can be one of the following:
             
             - Active - the version is active and is usable
@@ -1034,251 +1276,9 @@ components:
           type: array
           description: A list of changes relating to this version.
           items:
-            $ref: '#/components/schemas/DataSetChangeViewModel'
+            $ref: '#/components/schemas/ChangeViewModel'
         _links:
           $ref: '#/components/schemas/LinksViewModel'
-    DataSetChangeViewModel:
-      type: object
-      description: A specific change made as part of the data set version.
-      discriminator:
-        propertyName: metaType
-        mapping:
-          Filter: '#/components/schemas/DataSetChangeFilterViewModel'
-          FilterOption: '#/components/schemas/DataSetChangeFilterOptionViewModel'
-          Indicator: '#/components/schemas/DataSetChangeIndicatorViewModel'
-          Location: '#/components/schemas/DataSetChangeLocationViewModel'
-          TimePeriod: '#/components/schemas/DataSetChangeTimePeriodViewModel'
-      oneOf:
-        - $ref: '#/components/schemas/DataSetChangeFilterViewModel'
-        - $ref: '#/components/schemas/DataSetChangeFilterOptionViewModel'
-        - $ref: '#/components/schemas/DataSetChangeIndicatorViewModel'
-        - $ref: '#/components/schemas/DataSetChangeLocationViewModel'
-        - $ref: '#/components/schemas/DataSetChangeTimePeriodViewModel'
-    DataSetChangeFilterViewModel:
-      type: object
-      description: A change made to filter meta.
-      additionalProperties: false
-      required:
-        - id
-        - type
-        - metaType
-      properties:
-        id:
-          type: string
-          description: The ID of the change.
-          format: uuid
-        type:
-          $ref: '#/components/schemas/DataSetChangeType'
-        metaType:
-          type: string
-          description: The meta type changed.
-          enum:
-            - Filter
-        currentState:
-          $ref: '#/components/schemas/DataSetChangeFilterState'
-        previousState:
-          $ref: '#/components/schemas/DataSetChangeFilterState'
-    DataSetChangeFilterOptionViewModel:
-      type: object
-      description: A change made to filter option meta.
-      additionalProperties: false
-      required:
-        - id
-        - type
-        - metaType
-      properties:
-        id:
-          type: string
-          description: The ID of the change.
-          format: uuid
-        type:
-          $ref: '#/components/schemas/DataSetChangeType'
-        metaType:
-          type: string
-          description: The meta type changed.
-          enum:
-            - FilterOption
-        currentState:
-          $ref: '#/components/schemas/DataSetChangeFilterOptionState'
-        previousState:
-          $ref: '#/components/schemas/DataSetChangeFilterOptionState'
-    DataSetChangeIndicatorViewModel:
-      type: object
-      description: A change made to indicator meta.
-      additionalProperties: false
-      required:
-        - id
-        - type
-        - metaType
-      properties:
-        id:
-          type: string
-          description: The ID of the change.
-          format: uuid
-        type:
-          $ref: '#/components/schemas/DataSetChangeType'
-        metaType:
-          type: string
-          description: The meta type changed.
-          enum:
-            - Indicator
-        currentState:
-          $ref: '#/components/schemas/DataSetChangeIndicatorState'
-        previousState:
-          $ref: '#/components/schemas/DataSetChangeIndicatorState'
-    DataSetChangeLocationViewModel:
-      type: object
-      description: A change made to location meta.
-      additionalProperties: false
-      required:
-        - id
-        - type
-        - metaType
-      properties:
-        id:
-          type: string
-          description: The ID of the change.
-          format: uuid
-        type:
-          $ref: '#/components/schemas/DataSetChangeType'
-        metaType:
-          type: string
-          description: The meta type changed.
-          enum:
-            - Location
-        currentState:
-          $ref: '#/components/schemas/DataSetChangeLocationState'
-        previousState:
-          $ref: '#/components/schemas/DataSetChangeLocationState'
-    DataSetChangeTimePeriodViewModel:
-      type: object
-      description: A change made to time period meta.
-      additionalProperties: false
-      required:
-        - id
-        - type
-        - metaType
-      properties:
-        id:
-          type: string
-          description: The ID of the change.
-          format: uuid
-        type:
-          $ref: '#/components/schemas/DataSetChangeType'
-        metaType:
-          type: string
-          description: The meta type changed.
-          enum:
-            - TimePeriod
-        currentState:
-          $ref: '#/components/schemas/DataSetChangeTimePeriodState'
-        previousState:
-          $ref: '#/components/schemas/DataSetChangeTimePeriodState'
-    DataSetChangeFilterState:
-      type: object
-      description: The state of a filter during a change.
-      additionalProperties: false
-      required:
-        - id
-        - label
-      properties:
-        id:
-          type: string
-          description: The ID of the filter.
-        label:
-          type: string
-          description: The human-readable label of the filter.
-    DataSetChangeFilterOptionState:
-      type: object
-      description: A state of a filter option during a change.
-      additionalProperties: false
-      required:
-        - id
-        - label
-        - filterId
-      properties:
-        id:
-          type: string
-          description: The ID of the filter item.
-        label:
-          type: string
-          description: The human-readable label describing the filter item.
-        isAggregate:
-          type: boolean
-          description: Whether the filter item is an aggregate (i.e. 'all' or a 'total') of the other filter items.
-        filterId:
-          type: string
-          description: The ID of the filter the filter item belongs to.
-    DataSetChangeIndicatorState:
-      type: object
-      description: The state of an indicator during a change.
-      additionalProperties: false
-      required:
-        - id
-        - label
-        - unit
-      properties:
-        id:
-          type: string
-          description: The ID of the indicator.
-        label:
-          type: string
-          description: The human-readable label of the indicator.
-        unit:
-          $ref: '#/components/schemas/Unit'
-        decimalPlaces:
-          type: integer
-          format: int32
-          description: The optimal number of decimal places that the indicator should use when displayed.
-    DataSetChangeLocationState:
-      type: object
-      description: The state of a location during a change.
-      required:
-        - id
-        - label
-        - code
-        - level
-      properties:
-        id:
-          type: string
-          description: The ID of the location.
-        label:
-          type: string
-          description: The label of the location.
-        code:
-          type: string
-          description: The code of the location (if applicable).
-        level:
-          $ref: '#/components/schemas/GeographicLevel'
-      additionalProperties:
-        type: string
-        description: Other properties of the location.
-    DataSetChangeTimePeriodState:
-      type: object
-      description: The state of a time period during a change.
-      additionalProperties: false
-      required:
-        - code
-        - year
-      properties:
-        code:
-          $ref: '#/components/schemas/TimePeriodCode'
-        year:
-          type: integer
-          format: int32
-          description: The year that the time period relates to.
-    DataSetChangeType:
-      type: string
-      description: |-
-        The type of change that was made. This can be:
-
-          - `Add` - the addition of something e.g. a new facet
-          - `Update` - an update to something e.g. a facet's label or other attribute
-          - `Delete` - the removal of something e.g. a facet
-      enum:
-        - Add
-        - Update
-        - Delete
     ErrorDictionary:
       type: object
       description: |-
