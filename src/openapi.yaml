@@ -92,15 +92,31 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: page
+          in: query
+          description: The page of results to fetch.
+          required: false
+          schema:
+            type: number
+            minimum: 1
+            format: int32
+        - name: pageSize
+          in: query
+          description: The maximum number of results per page.
+          required: false
+          schema:
+            type: number
+            format: int32
+            minimum: 0
+            maximum: 20
+            default: 10
       responses:
         '200':
           description: Success
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/DataSetViewModel'
+                $ref: '#/components/schemas/PagedDataSetsViewModel'
         '400':
           $ref: '#/components/responses/BadRequest'
         '404':
@@ -1512,6 +1528,22 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/DataSetVersionViewModel'
+        _links:
+          $ref: '#/components/schemas/LinksViewModel'
+    PagedDataSetsViewModel:
+      type: object
+      additionalProperties: false
+      required:
+        - paging
+        - results
+        - _links
+      properties:
+        paging:
+          $ref: '#/components/schemas/PagingViewModel'
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/DataSetViewModel'
         _links:
           $ref: '#/components/schemas/LinksViewModel'
     PagedPublicationSummaryViewModel:

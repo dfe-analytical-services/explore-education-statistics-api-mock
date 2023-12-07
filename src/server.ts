@@ -19,6 +19,7 @@ import {
   DataSetLatestVersionViewModel,
   DataSetVersionViewModel,
   DataSetViewModel,
+  PagedDataSetsViewModel,
   PagedDataSetVersionsViewModel,
 } from './schema';
 import createLinks from './utils/createLinks';
@@ -129,18 +130,58 @@ app.get('/api/v1/publications/:publicationId/data-sets', async (req, res) => {
     throw new NotFoundError();
   }
 
+  const { page = 1, pageSize = 10 } = parsePaginationParams(req.query);
+
   const matchingDataSets = allDataSets
     .filter((dataSet) => dataSet.publication.id === publication.id)
     .map((dataSet) => dataSet.viewModel);
 
-  return res.status(200).json(
-    matchingDataSets.map(({ _links, ...dataSet }) => {
-      return {
-        ...dataSet,
-        _links: addHostUrlToLinks(_links, req),
-      };
-    }),
+  const start = (page - 1) * pageSize;
+  const totalPages =
+    pageSize > 0 ? Math.ceil(matchingDataSets.length / pageSize) : 0;
+
+  const results: DataSetViewModel[] = await Promise.all(
+    matchingDataSets
+      .slice(start, start + pageSize)
+      .map(async ({ _links, ...dataSet }) => {
+        const [latestVersion] = await getDataSetVersionDetails(dataSet.id, [
+          allDataSetVersions[dataSet.id][0],
+        ]);
+
+        return {
+          ...dataSet,
+          latestVersion: {
+            number: latestVersion.number,
+            timePeriods: latestVersion.timePeriods,
+            filters: latestVersion.filters,
+            geographicLevels: latestVersion.geographicLevels,
+            indicators: latestVersion.indicators,
+          } satisfies DataSetLatestVersionViewModel,
+          _links,
+        };
+      }),
   );
+
+  return res.status(200).json({
+    _links: createLinks({
+      self: {
+        url: getFullRequestUrl(req),
+        method: req.method,
+      },
+      paging: {
+        query: req.query,
+        page,
+        totalPages,
+      },
+    }),
+    paging: {
+      page,
+      pageSize,
+      totalPages: totalPages,
+      totalResults: matchingDataSets.length,
+    },
+    results,
+  } satisfies PagedDataSetsViewModel);
 });
 
 app.get('/api/v1/data-sets/:dataSetId', async (req, res) => {
