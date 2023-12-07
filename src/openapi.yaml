@@ -120,11 +120,6 @@ paths:
           schema:
             type: string
             format: uuid
-        - name: dataSetVersion
-          in: query
-          description: The version of the data set to use e.g. 2.0, 1.1, etc.
-          schema:
-            type: string
       responses:
         '200':
           description: Success
@@ -1078,8 +1073,7 @@ components:
             - Active
             - Deprecated
         latestVersion:
-          type: string
-          description: The latest version number of the data set e.g. 2.0, 1.1, etc.
+          $ref: '#/components/schemas/DataSetLatestVersionViewModel'
         supersedingDataSetId:
           type: string
           description: The ID of the data set that supersedes this data set (if it has been deprecated).
@@ -1090,6 +1084,35 @@ components:
         _links:
           $ref: '#/components/schemas/LinksViewModel'
       additionalProperties: false
+    DataSetLatestVersionViewModel:
+      type: object
+      required:
+        - number
+        - timePeriods
+        - geographicLevels
+        - filters
+        - indicators
+      properties:
+        number:
+          type: string
+          description: The version number.
+        timePeriods:
+          $ref: '#/components/schemas/TimePeriodLabels'
+        geographicLevels:
+          type: array
+          description: The geographic levels available in the data set.
+          items:
+            type: string
+        filters:
+          type: array
+          description: The filters available in the data set.
+          items:
+            type: string
+        indicators:
+          type: array
+          description: The indicators available in the data set.
+          items:
+            type: string
     DataSetResultsViewModel:
       type: object
       description: Contains the results of a data set query, and any associated footnotes or meta (where applicable).
@@ -1240,14 +1263,14 @@ components:
           type: string
           description: |-
             The version's status. Can be one of the following:
-            
-            - Active - the version is active and is usable
-            - Deleted - the version has been deleted and can no longer be used
-            - Deprecated - the version is being deprecated and will not be usable in the future
+
+            - `Published` - the version is published and can be used
+            - `Deprecated` - the version is being deprecated and will not be usable in the future
+            - `Unpublished` - the version has been unpublished and can no longer be used
           enum:
             - Active
-            - Deleted
             - Deprecated
+            - Unpublished
         notes:
           type: string
           description: Any notes about this version and its changes.
@@ -1271,6 +1294,10 @@ components:
         published:
           type: string
           description: When the version was published.
+          format: datetime
+        unpublished:
+          type: string
+          description: When the version was unpublished.
           format: datetime
         changes:
           type: array

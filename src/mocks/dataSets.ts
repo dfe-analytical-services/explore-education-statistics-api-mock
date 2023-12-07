@@ -116,15 +116,17 @@ export const allDataSets: DataSet[] = [
 
 export interface DataSet {
   id: string;
-  viewModel: Omit<DataSetViewModel, 'filters' | 'indicators'>;
+  viewModel: Omit<DataSetViewModel, 'latestVersion'>;
   publication: PublicationSummaryViewModel;
 }
 
 function createDataSet({
   publication,
+  latestVersion,
   ...dataSet
-}: Omit<DataSetViewModel, 'filters' | 'indicators' | '_links'> & {
+}: Omit<DataSetViewModel, 'latestVersion' | '_links'> & {
   publication: PublicationSummaryViewModel;
+  latestVersion: string;
 }): DataSet {
   return {
     id: dataSet.id,
@@ -151,7 +153,7 @@ function createDataSet({
           href: `/api/v1/data-sets/${dataSet.id}/versions`,
         },
         latestVersion: {
-          href: `/api/v1/data-sets/${dataSet.id}/versions/${dataSet.latestVersion}`,
+          href: `/api/v1/data-sets/${dataSet.id}/versions/${latestVersion}`,
         },
       },
     },

@@ -16,7 +16,9 @@ import { allDataSetVersions } from './mocks/dataSetVersions';
 import { allPublications } from './mocks/publications';
 import {
   ApiErrorViewModel,
+  DataSetLatestVersionViewModel,
   DataSetVersionViewModel,
+  DataSetViewModel,
   PagedDataSetVersionsViewModel,
 } from './schema';
 import createLinks from './utils/createLinks';
@@ -143,7 +145,6 @@ app.get('/api/v1/publications/:publicationId/data-sets', async (req, res) => {
 
 app.get('/api/v1/data-sets/:dataSetId', async (req, res) => {
   const { dataSetId } = req.params;
-  const { dataSetVersion } = req.query;
 
   const matchingDataSet = allDataSets.find(
     (dataSet) => dataSet.id === dataSetId,
@@ -153,21 +154,23 @@ app.get('/api/v1/data-sets/:dataSetId', async (req, res) => {
     throw new NotFoundError();
   }
 
-  if (
-    dataSetVersion &&
-    !allDataSetVersions[dataSetId].some(
-      (version) => version.number === dataSetVersion,
-    )
-  ) {
-    throw new NotFoundError();
-  }
-
   const { viewModel } = matchingDataSet;
+
+  const [latestVersion] = await getDataSetVersionDetails(dataSetId, [
+    allDataSetVersions[viewModel.id][0],
+  ]);
 
   return res.status(200).json({
     ...viewModel,
+    latestVersion: {
+      number: latestVersion.number,
+      geographicLevels: latestVersion.geographicLevels,
+      filters: latestVersion.filters,
+      timePeriods: latestVersion.timePeriods,
+      indicators: latestVersion.indicators,
+    },
     _links: addHostUrlToLinks(viewModel._links, req),
-  });
+  } satisfies DataSetViewModel);
 });
 
 app.get('/api/v1/data-sets/:dataSetId/meta', async (req, res) => {
