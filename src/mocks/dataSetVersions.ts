@@ -1,4 +1,4 @@
-import { DataSetVersionViewModel } from '../schema';
+import { ChangeViewModel, DataSetVersionViewModel } from '../schema';
 import {
   apprenticeshipsProvidersDetailedDataSet,
   benchmarkETDetailedReorderedDataSet,
@@ -14,7 +14,9 @@ import {
 export type DataSetVersionViewModelMock = Omit<
   DataSetVersionViewModel,
   'filters' | 'indicators'
->;
+> & {
+  changes?: ChangeViewModel[];
+};
 
 export const spcEthnicityLanguageDataSetVersions = createVersions({
   dataSetId: spcEthnicityLanguageDataSet.id,
@@ -303,14 +305,14 @@ function createVersions({
         self: {
           href: `/api/v1/data-sets/${dataSetId}/versions/${version.number}`,
         },
+        changes: {
+          href: `/api/v1/data-sets/${dataSetId}/versions/${version.number}/changes`,
+        },
         dataSet: {
           href: `/api/v1/data-sets/${dataSetId}`,
         },
         query: {
           href: `/api/v1/data-sets/${dataSetId}/query?dataSetVersion=${version.number}`,
-        },
-        versions: {
-          href: `/api/v1/data-sets/${dataSetId}/versions`,
         },
       },
       ...version,

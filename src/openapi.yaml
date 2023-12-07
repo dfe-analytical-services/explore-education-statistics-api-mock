@@ -514,6 +514,38 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/v1/data-sets/{dataSetId}/versions/{dataSetVersion}/changes:
+    get:
+      operationId: GetDataSetVersionChanges
+      summary: Get a data set version's changes
+      description: Get a data set version's list of changes.
+      tags:
+        - Data Set
+      parameters:
+        - name: dataSetId
+          in: path
+          description: The ID of the data set.
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: dataSetVersion
+          in: path
+          description: The data set version number e.g. 2.0, 1.1, etc.
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChangeSetViewModel'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
 components:
   responses:
     BadRequest:
@@ -549,6 +581,19 @@ components:
           format: int32
         errors:
           $ref: '#/components/schemas/ErrorDictionary'
+    ChangeSetViewModel:
+      type: object
+      description: A set of changes made to a data set version.
+      required:
+        - _links
+        - changes
+      properties:
+        _links:
+          $ref: '#/components/schemas/LinksViewModel'
+        changes:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChangeViewModel'
     ChangeViewModel:
       type: object
       description: A specific change made as part of the data set version.
@@ -1315,11 +1360,6 @@ components:
           type: string
           description: When the version was unpublished.
           format: datetime
-        changes:
-          type: array
-          description: A list of changes relating to this version.
-          items:
-            $ref: '#/components/schemas/ChangeViewModel'
         _links:
           $ref: '#/components/schemas/LinksViewModel'
     ErrorDictionary:

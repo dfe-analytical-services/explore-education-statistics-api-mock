@@ -16,6 +16,7 @@ import { allDataSetVersions } from './mocks/dataSetVersions';
 import { allPublications } from './mocks/publications';
 import {
   ApiErrorViewModel,
+  ChangeSetViewModel,
   DataSetLatestVersionViewModel,
   DataSetVersionViewModel,
   DataSetViewModel,
@@ -314,10 +315,10 @@ app.get('/api/v1/data-sets/:dataSetId/versions', async (req, res) => {
 
   const matchingVersions = (
     await getDataSetVersionDetails(dataSetId, allDataSetVersions[dataSetId])
-  ).map((version) => {
+  ).map(({ _links, ...version }) => {
     return {
-      _links: addHostUrlToLinks(version._links, req),
-      ...omit(version, ['changes', '_links']),
+      _links: addHostUrlToLinks(_links, req),
+      ...omit(version, 'changes'),
     };
   });
 
@@ -379,9 +380,47 @@ app.get(
     ]);
 
     return res.status(200).json({
-      ...version,
+      ...omit(version, 'changes'),
       _links: addHostUrlToLinks(_links, req),
     });
+  },
+);
+
+app.get(
+  '/api/v1/data-sets/:dataSetId/versions/:dataSetVersion/changes',
+  async (req, res) => {
+    const { dataSetId, dataSetVersion } = req.params;
+
+    if (!dataSetDirs[dataSetId]) {
+      throw new NotFoundError();
+    }
+
+    if (!allDataSetVersions[dataSetId]) {
+      throw new NotFoundError();
+    }
+
+    const version = allDataSetVersions[dataSetId].find(
+      (version) => version.number === dataSetVersion,
+    );
+
+    if (!version) {
+      throw new NotFoundError();
+    }
+
+    return res.status(200).json({
+      _links: createLinks({
+        self: {
+          url: getFullRequestUrl(req),
+          method: req.method,
+        },
+        links: {
+          version: {
+            href: `/api/data-sets/${dataSetId}/versions/${dataSetVersion}`,
+          },
+        },
+      }),
+      changes: version.changes ?? [],
+    } satisfies ChangeSetViewModel);
   },
 );
 
