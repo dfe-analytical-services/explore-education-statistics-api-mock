@@ -205,7 +205,7 @@ paths:
             $ref: '#/components/schemas/DataSetQueryCriteriaTimePeriods'
         - name: indicators
           in: query
-          description: The IDs or names of indicators to get values for.
+          description: The IDs of indicators to get values for.
           required: true
           explode: false
           allowReserved: true
@@ -970,7 +970,7 @@ components:
             - $ref: '#/components/schemas/DataSetQueryConditionNot'
         indicators:
           type: array
-          description: The IDs or names of indicators to get values for.
+          description: The IDs of indicators to get values for.
           minItems: 1
           items:
             type: string
@@ -1353,7 +1353,7 @@ components:
         values:
           type: object
           description: |-
-            A dictionary containing the row's data values. The key is the indicator name and the value is the measured indicator value.
+            A dictionary containing the row's data values. The key is the indicator ID and the value is the measured indicator value.
           additionalProperties:
             type: string
         timePeriod:
