@@ -36,7 +36,7 @@ export default function createLinks(options: Options): LinksViewModel {
 
   return {
     self:
-      self.method !== 'GET'
+      self.method === 'GET'
         ? {
             href: self.url,
           }
