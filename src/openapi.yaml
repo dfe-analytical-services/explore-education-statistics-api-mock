@@ -1110,7 +1110,6 @@ components:
         - description
         - status
         - latestVersion
-        - lastPublished
         - _links
       properties:
         id:
@@ -1138,10 +1137,6 @@ components:
         supersedingDataSetId:
           type: string
           description: The ID of the data set that supersedes this data set (if it has been deprecated).
-        lastPublished:
-          type: string
-          description: When was data set was last published.
-          format: datetime
         _links:
           $ref: '#/components/schemas/LinksViewModel'
       additionalProperties: false
@@ -1153,10 +1148,15 @@ components:
         - geographicLevels
         - filters
         - indicators
+        - published
       properties:
         number:
           type: string
           description: The version number.
+        published:
+          type: string
+          description: When the version was published.
+          format: datetime
         timePeriods:
           $ref: '#/components/schemas/TimePeriodLabels'
         geographicLevels:
@@ -1332,6 +1332,14 @@ components:
             - Active
             - Deprecated
             - Unpublished
+        published:
+          type: string
+          description: When the version was published.
+          format: datetime
+        unpublished:
+          type: string
+          description: When the version was unpublished.
+          format: datetime
         notes:
           type: string
           description: Any notes about this version and its changes.
@@ -1352,14 +1360,6 @@ components:
           description: The indicators available in the data set.
           items:
             type: string
-        published:
-          type: string
-          description: When the version was published.
-          format: datetime
-        unpublished:
-          type: string
-          description: When the version was unpublished.
-          format: datetime
         _links:
           $ref: '#/components/schemas/LinksViewModel'
     ErrorDictionary:

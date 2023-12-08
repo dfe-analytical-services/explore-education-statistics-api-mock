@@ -151,13 +151,14 @@ app.get('/api/v1/publications/:publicationId/data-sets', async (req, res) => {
 
         return {
           ...dataSet,
-          latestVersion: {
-            number: latestVersion.number,
-            timePeriods: latestVersion.timePeriods,
-            filters: latestVersion.filters,
-            geographicLevels: latestVersion.geographicLevels,
-            indicators: latestVersion.indicators,
-          } satisfies DataSetLatestVersionViewModel,
+          latestVersion: pick(latestVersion, [
+            'number',
+            'published',
+            'filters',
+            'timePeriods',
+            'geographicLevels',
+            'indicators',
+          ]) satisfies DataSetLatestVersionViewModel,
           _links,
         };
       }),
@@ -204,13 +205,14 @@ app.get('/api/v1/data-sets/:dataSetId', async (req, res) => {
 
   return res.status(200).json({
     ...viewModel,
-    latestVersion: {
-      number: latestVersion.number,
-      geographicLevels: latestVersion.geographicLevels,
-      filters: latestVersion.filters,
-      timePeriods: latestVersion.timePeriods,
-      indicators: latestVersion.indicators,
-    },
+    latestVersion: pick(latestVersion, [
+      'number',
+      'published',
+      'filters',
+      'timePeriods',
+      'geographicLevels',
+      'indicators',
+    ]) satisfies DataSetLatestVersionViewModel,
     _links: addHostUrlToLinks(viewModel._links, req),
   } satisfies DataSetViewModel);
 });

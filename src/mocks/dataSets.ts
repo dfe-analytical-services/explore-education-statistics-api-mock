@@ -14,7 +14,6 @@ export const spcEthnicityLanguageDataSet = createDataSet({
     'Number of pupils in state-funded nursery, primary, secondary and special schools, non-maintained special schools and pupil referral units by language and ethnicity.',
   status: 'Active',
   latestVersion: '2.0',
-  lastPublished: '2022-12-01T09:30:00Z',
   publication: spcPublication,
 });
 
@@ -25,7 +24,6 @@ export const spcYearGroupGenderDataSet = createDataSet({
     'Number of pupils in state-funded nursery, primary, secondary and special schools, non-maintained special schools, pupil referral units and independent schools by national curriculum year and gender.',
   status: 'Active',
   latestVersion: '1.0',
-  lastPublished: '2022-12-01T09:30:00Z',
   publication: spcPublication,
 });
 
@@ -36,7 +34,6 @@ export const pupilAttendanceWeeklyDataSet = createDataSet({
     'Weekly local authority, regional and national attendance since 12 September 2022, including reasons for absence. Figures are provided for state-funded primary, secondary and special schools. Totals for all schools are also included that include estimates for non-response.',
   status: 'Active',
   latestVersion: '1.0',
-  lastPublished: '2022-12-01T09:30:00Z',
   publication: pupilAbsencePublication,
 });
 
@@ -47,7 +44,6 @@ export const leoIndustryRegionalDataSet = createDataSet({
     'Graduate populations of UK domiciled graduates of English Higher Education Institutions (HEIs), Alternative Providers (APs) and Further Education Colleges (FECs), one, three, five and ten years after graduation (YAG), 2019/20 tax year',
   status: 'Active',
   latestVersion: '1.0',
-  lastPublished: '2022-12-01T09:30:00Z',
   publication: leoPublication,
 });
 
@@ -58,7 +54,6 @@ export const apprenticeshipsProvidersDetailedDataSet = createDataSet({
     'Breakdowns of apprenticeship starts and achievements by individual provider',
   status: 'Active',
   latestVersion: '1.0',
-  lastPublished: '2022-12-01T09:30:00Z',
   publication: apprenticeshipsPublication,
 });
 
@@ -68,7 +63,6 @@ export const benchmarkETDetailedReorderedDataSet = createDataSet({
   description: '',
   status: 'Active',
   latestVersion: '1.0',
-  lastPublished: '2022-12-01T09:30:00Z',
   publication: benchmarkPublication,
 });
 
@@ -78,7 +72,6 @@ export const benchmarkQuaDataSet = createDataSet({
   description: '',
   status: 'Active',
   latestVersion: '1.0',
-  lastPublished: '2022-12-01T09:30:00Z',
   publication: benchmarkPublication,
 });
 
@@ -88,7 +81,6 @@ export const benchmarkNatDataSet = createDataSet({
   description: '',
   status: 'Active',
   latestVersion: '1.0',
-  lastPublished: '2022-12-01T09:30:00Z',
   publication: benchmarkPublication,
 });
 
@@ -98,7 +90,6 @@ export const benchmarkLtdDmDataSet = createDataSet({
   description: '',
   status: 'Active',
   latestVersion: '1.0',
-  lastPublished: '2022-12-01T09:30:00Z',
   publication: benchmarkPublication,
 });
 
