@@ -420,13 +420,6 @@ paths:
           description: The version of the data set to use e.g. 2.0, 1.1, etc.
           schema:
             type: string
-        - name: showFilterIds
-          in: query
-          description: Include filter IDs in the response (defaults to false).
-          required: false
-          schema:
-            type: boolean
-            default: false
       responses:
         '200':
           description: Success
