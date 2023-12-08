@@ -3,7 +3,10 @@ import compression from 'compression';
 import express, { ErrorRequestHandler } from 'express';
 import 'express-async-errors';
 import * as OpenApiValidator from 'express-openapi-validator';
-import { BadRequest } from 'express-openapi-validator/dist/framework/types';
+import {
+  BadRequest,
+  NotFound,
+} from 'express-openapi-validator/dist/framework/types';
 import { omit, pick } from 'lodash';
 import morgan from 'morgan';
 import path from 'path';
@@ -421,6 +424,14 @@ const errorHandler: ErrorRequestHandler<{}, ApiErrorViewModel | string> = (
 
     if (err instanceof ApiError) {
       return err;
+    }
+
+    if (err instanceof NotFound) {
+      return new ApiError({
+        title: 'The requested resource could not be found.',
+        status: 404,
+        type: 'Not Found',
+      });
     }
 
     if (
