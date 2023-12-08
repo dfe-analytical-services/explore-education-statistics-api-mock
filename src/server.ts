@@ -10,7 +10,8 @@ import path from 'path';
 import { InternalServerError, ValidationError } from './errors';
 import ApiError from './errors/ApiError';
 import NotFoundError from './errors/NotFoundError';
-import { queryDataSet } from './handlers/queryDataSet';
+import getDataSetMetaHandler from './handlers/getDataSetMetaHandler';
+import { queryDataSetHandler } from './handlers/queryDataSetHandler';
 import { allDataSets } from './mocks/dataSets';
 import { allDataSetVersions } from './mocks/dataSetVersions';
 import { allPublications } from './mocks/publications';
@@ -217,47 +218,26 @@ app.get('/api/v1/data-sets/:dataSetId', async (req, res) => {
   } satisfies DataSetViewModel);
 });
 
-app.get('/api/v1/data-sets/:dataSetId/meta', async (req, res) => {
-  const { dataSetId } = req.params;
-  const { dataSetVersion } = req.query;
+app.get('/api/v1/data-sets/:dataSetId/meta', getDataSetMetaHandler());
+app.get(
+  '/api/v1/data-sets/:dataSetId/meta/filters',
+  getDataSetMetaHandler('filters'),
+);
+app.get(
+  '/api/v1/data-sets/:dataSetId/meta/indicators',
+  getDataSetMetaHandler('indicators'),
+);
+app.get(
+  '/api/v1/data-sets/:dataSetId/meta/geographic',
+  getDataSetMetaHandler('geographic'),
+);
+app.get(
+  '/api/v1/data-sets/:dataSetId/meta/time-periods',
+  getDataSetMetaHandler('timePeriods'),
+);
 
-  if (!dataSetDirs[dataSetId]) {
-    throw new NotFoundError();
-  }
-
-  if (
-    dataSetVersion &&
-    !allDataSetVersions[dataSetId].some(
-      (version) => version.number === dataSetVersion,
-    )
-  ) {
-    throw new NotFoundError();
-  }
-
-  const meta = await getDataSetMeta(dataSetId);
-
-  return res.status(200).json({
-    _links: createLinks({
-      self: {
-        url: getFullRequestUrl(req),
-        method: req.method,
-      },
-      links: {
-        query: {
-          href: `/api/v1/data-sets/${dataSetId}/query`,
-          method: 'POST',
-        },
-        file: {
-          href: `/api/v1/data-sets/${dataSetId}/file`,
-        },
-      },
-    }),
-    ...meta,
-  });
-});
-
-app.get('/api/v1/data-sets/:dataSetId/query', queryDataSet);
-app.post('/api/v1/data-sets/:dataSetId/query', queryDataSet);
+app.get('/api/v1/data-sets/:dataSetId/query', queryDataSetHandler);
+app.post('/api/v1/data-sets/:dataSetId/query', queryDataSetHandler);
 
 app.get('/api/v1/data-sets/:dataSetId/file', async (req, res) => {
   const { dataSetId } = req.params;

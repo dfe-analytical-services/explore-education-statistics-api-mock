@@ -431,6 +431,130 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/v1/data-sets/{dataSetId}/meta/filters:
+    get:
+      operationId: GetDataSetMetaFilters
+      summary: Get a data set's filter metadata
+      description: Get the filter metadata about a data set. Use this to create data set queries.
+      tags:
+        - Data Set
+      parameters:
+        - name: dataSetId
+          in: path
+          description: The ID of the data set.
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: dataSetVersion
+          in: query
+          description: The version of the data set to use e.g. 2.0, 1.1, etc.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataSetMetaFiltersViewModel'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/data-sets/{dataSetId}/meta/indicators:
+    get:
+      operationId: GetDataSetMetaIndicators
+      summary: Get a data set's indicator metadata
+      description: Get the indicator metadata about a data set. Use this to create data set queries.
+      tags:
+        - Data Set
+      parameters:
+        - name: dataSetId
+          in: path
+          description: The ID of the data set.
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: dataSetVersion
+          in: query
+          description: The version of the data set to use e.g. 2.0, 1.1, etc.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataSetMetaIndicatorsViewModel'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/data-sets/{dataSetId}/meta/geographic:
+    get:
+      operationId: GetDataSetMetaGeographic
+      summary: Get a data set's geographic metadata
+      description: Get the geographic metadata about a data set. Use this to create data set queries.
+      tags:
+        - Data Set
+      parameters:
+        - name: dataSetId
+          in: path
+          description: The ID of the data set.
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: dataSetVersion
+          in: query
+          description: The version of the data set to use e.g. 2.0, 1.1, etc.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataSetMetaGeographicViewModel'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/data-sets/{dataSetId}/meta/time-periods:
+    get:
+      operationId: GetDataSetMetaTimePeriods
+      summary: Get a data set's time period metadata
+      description: Get the time period metadata about a data set. Use this to create data set queries.
+      tags:
+        - Data Set
+      parameters:
+        - name: dataSetId
+          in: path
+          description: The ID of the data set.
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: dataSetVersion
+          in: query
+          description: The version of the data set to use e.g. 2.0, 1.1, etc.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataSetMetaTimePeriodsViewModel'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /api/v1/data-sets/{dataSetId}/versions:
     get:
       operationId: ListDataSetVersions
@@ -1237,23 +1361,17 @@ components:
       additionalProperties: false
     DataSetMetaViewModel:
       type: object
-      description: All the metadata associated with the data set.
+      description: All the metadata associated with a data set.
       required:
         - _links
-        - totalResults
         - filters
         - indicators
-        - locations
         - geographicLevels
+        - locations
         - timePeriods
       properties:
         _links:
           $ref: '#/components/schemas/LinksViewModel'
-        totalResults:
-          type: number
-          description: The total number of results.
-          format: int32
-          minimum: 0
         filters:
           type: array
           description: All the filters associated with the data set.
@@ -1264,16 +1382,82 @@ components:
           description: All the indicators associated with the data set.
           items:
             $ref: '#/components/schemas/IndicatorMetaViewModel'
-        locations:
-          type: array
-          description: All the locations associated with the data set, grouped by level.
-          items:
-            $ref: '#/components/schemas/LocationLevelMetaViewModel'
         geographicLevels:
           type: array
           description: All the geographic levels associated with the data set.
           items:
             $ref: '#/components/schemas/GeographicLevel'
+        locations:
+          type: array
+          description: All the locations associated with the data set, grouped by level.
+          items:
+            $ref: '#/components/schemas/LocationLevelMetaViewModel'
+        timePeriods:
+          type: array
+          description: All the time periods associated with the data set.
+          items:
+            $ref: '#/components/schemas/TimePeriodMetaViewModel'
+      additionalProperties: false
+    DataSetMetaFiltersViewModel:
+      type: object
+      description: All the filter metadata associated with a data set.
+      required:
+        - _links
+        - filters
+      properties:
+        _links:
+          $ref: '#/components/schemas/LinksViewModel'
+        filters:
+          type: array
+          description: All the filters associated with the data set.
+          items:
+            $ref: '#/components/schemas/FilterMetaViewModel'
+      additionalProperties: false
+    DataSetMetaIndicatorsViewModel:
+      type: object
+      description: All the indicator metadata associated with a data set.
+      required:
+        - _links
+        - indicators
+      properties:
+        _links:
+          $ref: '#/components/schemas/LinksViewModel'
+        indicators:
+          type: array
+          description: All the indicators associated with the data set.
+          items:
+            $ref: '#/components/schemas/IndicatorMetaViewModel'
+      additionalProperties: false
+    DataSetMetaGeographicViewModel:
+      type: object
+      description: All the geographic metadata associated with a data set.
+      required:
+        - _links
+        - geographicLevels
+        - locations
+      properties:
+        _links:
+          $ref: '#/components/schemas/LinksViewModel'
+        geographicLevels:
+          type: array
+          description: All the geographic levels associated with the data set.
+          items:
+            $ref: '#/components/schemas/GeographicLevel'
+        locations:
+          type: array
+          description: All the locations associated with the data set, grouped by level.
+          items:
+            $ref: '#/components/schemas/LocationLevelMetaViewModel'
+      additionalProperties: false
+    DataSetMetaTimePeriodsViewModel:
+      type: object
+      description: All the geographic metadata associated with a data set.
+      required:
+        - _links
+        - timePeriods
+      properties:
+        _links:
+          $ref: '#/components/schemas/LinksViewModel'
         timePeriods:
           type: array
           description: All the time periods associated with the data set.

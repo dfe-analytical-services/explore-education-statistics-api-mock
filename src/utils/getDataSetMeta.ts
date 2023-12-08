@@ -36,10 +36,6 @@ export default async function getDataSetMeta(
   const dataSetDir = getDataSetDir(dataSetId);
   const db = new Database();
 
-  const { total } = await db.first<{ total: BigInt }>(
-    `SELECT count(*) as total FROM '${tableFile(dataSetDir, 'data')}';`,
-  );
-
   const [locations, geographicLevels, timePeriods, filters, indicators] =
     await Promise.all([
       getLocationsMeta(db, dataSetDir),
@@ -51,7 +47,6 @@ export default async function getDataSetMeta(
 
   try {
     return {
-      totalResults: Number(total),
       timePeriods,
       filters,
       indicators,

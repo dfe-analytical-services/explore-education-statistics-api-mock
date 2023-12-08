@@ -13,7 +13,7 @@ import {
   runDataSetQueryToCsv,
 } from '../utils/runDataSetQuery';
 
-export async function queryDataSet(req: Request, res: Response) {
+export async function queryDataSetHandler(req: Request, res: Response) {
   const { dataSetId } = req.params;
   const { dataSetVersion } = req.query;
 
