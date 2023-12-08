@@ -1639,6 +1639,8 @@ components:
         - id
         - title
         - slug
+        - summary
+        - lastPublished
         - _links
       properties:
         id:
@@ -1651,6 +1653,13 @@ components:
         slug:
           type: string
           description: The URL slug of the publication.
+        summary:
+          type: string
+          description: The summary of the publication.
+        lastPublished:
+          type: string
+          description: When the publication was last published.
+          format: datetime
         _links:
           $ref: '#/components/schemas/LinksViewModel'
       additionalProperties: false
