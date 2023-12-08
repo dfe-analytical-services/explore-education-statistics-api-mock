@@ -899,7 +899,7 @@ components:
           type: string
           description: The human-readable label of the indicator.
         unit:
-          $ref: '#/components/schemas/Unit'
+          $ref: '#/components/schemas/IndicatorUnit'
         decimalPlaces:
           type: integer
           format: int32
@@ -1128,27 +1128,27 @@ components:
       description: The time periods to match results by.
       properties:
         eq:
-          $ref: '#/components/schemas/TimePeriodViewModel'
+          $ref: '#/components/schemas/TimePeriod'
         notEq:
-          $ref: '#/components/schemas/TimePeriodViewModel'
+          $ref: '#/components/schemas/TimePeriod'
         gte:
-          $ref: '#/components/schemas/TimePeriodViewModel'
+          $ref: '#/components/schemas/TimePeriod'
         gt:
-          $ref: '#/components/schemas/TimePeriodViewModel'
+          $ref: '#/components/schemas/TimePeriod'
         lte:
-          $ref: '#/components/schemas/TimePeriodViewModel'
+          $ref: '#/components/schemas/TimePeriod'
         lt:
-          $ref: '#/components/schemas/TimePeriodViewModel'
+          $ref: '#/components/schemas/TimePeriod'
         in:
           type: array
           minItems: 1
           items:
-            $ref: '#/components/schemas/TimePeriodViewModel'
+            $ref: '#/components/schemas/TimePeriod'
         notIn:
           type: array
           minItems: 1
           items:
-            $ref: '#/components/schemas/TimePeriodViewModel'
+            $ref: '#/components/schemas/TimePeriod'
       additionalProperties: false
     DataSetQueryCriteriaGeographicLevels:
       type: object
@@ -1275,7 +1275,7 @@ components:
           description: When the version was published.
           format: datetime
         timePeriods:
-          $ref: '#/components/schemas/TimePeriodLabels'
+          $ref: '#/components/schemas/TimePeriodRange'
         geographicLevels:
           type: array
           description: The geographic levels available in the data set.
@@ -1357,7 +1357,7 @@ components:
           additionalProperties:
             type: string
         timePeriod:
-          $ref: '#/components/schemas/TimePeriodViewModel'
+          $ref: '#/components/schemas/TimePeriod'
       additionalProperties: false
     DataSetMetaViewModel:
       type: object
@@ -1521,7 +1521,7 @@ components:
           type: string
           description: Any notes about this version and its changes.
         timePeriods:
-          $ref: '#/components/schemas/TimePeriodLabels'
+          $ref: '#/components/schemas/TimePeriodRange'
         geographicLevels:
           type: array
           description: The geographic levels available in the data set.
@@ -1661,12 +1661,21 @@ components:
           type: string
           description: The human-readable label of the indicator.
         unit:
-          $ref: '#/components/schemas/Unit'
+          $ref: '#/components/schemas/IndicatorUnit'
         decimalPlaces:
           type: integer
           format: int32
           description: The optimal number of decimal places that the indicator should use when displayed.
       additionalProperties: false
+    IndicatorUnit:
+      type: string
+      description: A numeric unit for an indicator.
+      enum:
+        - ''
+        - '%'
+        - £
+        - £m
+        - pp
     LinkViewModel:
       type: object
       description: A link to the endpoint for a related resource.
@@ -1948,9 +1957,9 @@ components:
         - `TYQ1-4` - Tax year quarter 1 to 4
         - `W1-52` - Week 1 to 52
         - `M1-12` - Month 1 to 12
-    TimePeriodLabels:
+    TimePeriodRange:
       type: object
-      description: Describes a time period in human-readable format.
+      description: Describes a time period range in human-readable format.
       required:
         - start
         - end
@@ -1962,7 +1971,7 @@ components:
           type: string
           description: The ending time period in human-readable format.
       additionalProperties: false
-    TimePeriodViewModel:
+    TimePeriod:
       type: object
       description: A compact representation of a time period.
       required:
@@ -1979,7 +1988,7 @@ components:
       type: object
       description: A representation of a time period including a human-readable label.
       allOf:
-        - $ref: '#/components/schemas/TimePeriodViewModel'
+        - $ref: '#/components/schemas/TimePeriod'
         - type: object
           required:
             - label
@@ -1987,15 +1996,6 @@ components:
             label:
               type: string
               description: The time period in human-readable format.
-    Unit:
-      enum:
-        - ''
-        - '%'
-        - £
-        - £m
-        - pp
-      type: string
-      description: A numeric unit.
     WarningDictionary:
       type: object
       description: |-
