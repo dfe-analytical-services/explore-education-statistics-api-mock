@@ -267,7 +267,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DataSetResultsViewModel'
+                $ref: '#/components/schemas/DataSetQueryResultsViewModel'
             text/csv:
               schema:
                 type: string
@@ -350,7 +350,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DataSetResultsViewModel'
+                $ref: '#/components/schemas/DataSetQueryResultsViewModel'
             text/csv:
               schema:
                 type: string
@@ -1201,6 +1201,71 @@ components:
           items:
             type: string
       additionalProperties: false
+    DataSetQueryResultsViewModel:
+      type: object
+      description: Contains the results of a data set query, and any associated footnotes or meta (where applicable).
+      required:
+        - footnotes
+        - paging
+        - results
+        - warnings
+        - _links
+      properties:
+        footnotes:
+          type: array
+          description: The footnotes relevant to the data set query results.
+          items:
+            $ref: '#/components/schemas/FootnoteViewModel'
+        paging:
+          $ref: '#/components/schemas/PagingViewModel'
+        results:
+          type: array
+          description: The results of the data set query.
+          items:
+            $ref: '#/components/schemas/DataSetQueryResultViewModel'
+        warnings:
+          $ref: '#/components/schemas/WarningDictionary'
+        _links:
+          $ref: '#/components/schemas/LinksViewModel'
+      additionalProperties: false
+    DataSetQueryResultViewModel:
+      type: object
+      description: A result from a data set query, showing values matched to their respective facets.
+      required:
+        - filters
+        - geographicLevel
+        - locations
+        - values
+        - timePeriod
+      properties:
+        filters:
+          type: object
+          description: |-
+            A dictionary containing the row's associated filters. 
+
+            The key is the filter name and the value is ID of the filter item.
+          additionalProperties:
+            type: string
+        geographicLevel:
+          $ref: '#/components/schemas/GeographicLevel'
+        locations:
+          type: object
+          description: |-
+            A dictionary containing the row's associated locations. 
+
+            The key is the geographic level and the value is the ID or code of the location.
+          additionalProperties:
+            type: string
+            description: The ID or code of the location.
+        values:
+          type: object
+          description: |-
+            A dictionary containing the row's data values. The key is the indicator ID and the value is the measured indicator value.
+          additionalProperties:
+            type: string
+        timePeriod:
+          $ref: '#/components/schemas/TimePeriod'
+      additionalProperties: false
     DataSetQuerySort:
       type: object
       description: A sorting configuration to sort query results by.
@@ -1291,74 +1356,6 @@ components:
           description: The indicators available in the data set.
           items:
             type: string
-    DataSetResultsViewModel:
-      type: object
-      description: Contains the results of a data set query, and any associated footnotes or meta (where applicable).
-      required:
-        - footnotes
-        - paging
-        - results
-        - warnings
-        - _links
-      properties:
-        footnotes:
-          type: array
-          description: The footnotes relevant to the data set query results.
-          items:
-            $ref: '#/components/schemas/FootnoteViewModel'
-        paging:
-          $ref: '#/components/schemas/PagingViewModel'
-        results:
-          type: array
-          description: The results of the data set query.
-          items:
-            $ref: '#/components/schemas/DataSetRowViewModel'
-        warnings:
-          $ref: '#/components/schemas/WarningDictionary'
-        _links:
-          $ref: '#/components/schemas/LinksViewModel'
-      additionalProperties: false
-    DataSetRowViewModel:
-      type: object
-      description: A row of data point measurements matching a set of facets.
-      required:
-        - filters
-        - geographicLevel
-        - locations
-        - values
-        - timePeriod
-      properties:
-        id:
-          type: string
-          description: The ID of the row.
-        filters:
-          type: object
-          description: |-
-            A dictionary containing the row's associated filters. 
-
-            The key is the filter name and the value is ID of the filter item.
-          additionalProperties:
-            type: string
-        geographicLevel:
-          $ref: '#/components/schemas/GeographicLevel'
-        locations:
-          type: object
-          description: |-
-            A dictionary containing the row's associated locations. 
-
-            The key is the geographic level and the value is the ID or code of the location.
-          additionalProperties:
-            type: string
-            description: The ID or code of the location.
-        values:
-          type: object
-          description: |-
-            A dictionary containing the row's data values. The key is the indicator ID and the value is the measured indicator value.
-          additionalProperties:
-            type: string
-        timePeriod:
-          $ref: '#/components/schemas/TimePeriod'
-      additionalProperties: false
     DataSetMetaViewModel:
       type: object
       description: All the metadata associated with a data set.
