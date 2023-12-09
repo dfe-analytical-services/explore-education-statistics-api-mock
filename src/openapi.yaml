@@ -1128,27 +1128,27 @@ components:
       description: The time periods to match results by.
       properties:
         eq:
-          $ref: '#/components/schemas/TimePeriod'
+          $ref: '#/components/schemas/DataSetQueryTimePeriod'
         notEq:
-          $ref: '#/components/schemas/TimePeriod'
+          $ref: '#/components/schemas/DataSetQueryTimePeriod'
         gte:
-          $ref: '#/components/schemas/TimePeriod'
+          $ref: '#/components/schemas/DataSetQueryTimePeriod'
         gt:
-          $ref: '#/components/schemas/TimePeriod'
+          $ref: '#/components/schemas/DataSetQueryTimePeriod'
         lte:
-          $ref: '#/components/schemas/TimePeriod'
+          $ref: '#/components/schemas/DataSetQueryTimePeriod'
         lt:
-          $ref: '#/components/schemas/TimePeriod'
+          $ref: '#/components/schemas/DataSetQueryTimePeriod'
         in:
           type: array
           minItems: 1
           items:
-            $ref: '#/components/schemas/TimePeriod'
+            $ref: '#/components/schemas/DataSetQueryTimePeriod'
         notIn:
           type: array
           minItems: 1
           items:
-            $ref: '#/components/schemas/TimePeriod'
+            $ref: '#/components/schemas/DataSetQueryTimePeriod'
       additionalProperties: false
     DataSetQueryCriteriaGeographicLevels:
       type: object
@@ -1264,7 +1264,7 @@ components:
           additionalProperties:
             type: string
         timePeriod:
-          $ref: '#/components/schemas/TimePeriod'
+          $ref: '#/components/schemas/TimePeriodViewModel'
       additionalProperties: false
     DataSetQuerySort:
       type: object
@@ -1283,6 +1283,19 @@ components:
           enum:
             - Asc
             - Desc
+    DataSetQueryTimePeriod:
+      type: object
+      description: A time period for a data set query.
+      required:
+        - code
+        - year
+      properties:
+        code:
+          $ref: '#/components/schemas/TimePeriodCode'
+        year:
+          type: integer
+          format: int32
+          description: The year that the time period relates to.
     DataSetViewModel:
       type: object
       description: Describes and provides high-level information about a data set.
@@ -1968,7 +1981,7 @@ components:
           type: string
           description: The ending time period in human-readable format.
       additionalProperties: false
-    TimePeriod:
+    TimePeriodViewModel:
       type: object
       description: A compact representation of a time period.
       required:
@@ -1985,7 +1998,7 @@ components:
       type: object
       description: A representation of a time period including a human-readable label.
       allOf:
-        - $ref: '#/components/schemas/TimePeriod'
+        - $ref: '#/components/schemas/TimePeriodViewModel'
         - type: object
           required:
             - label
