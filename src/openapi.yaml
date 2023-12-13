@@ -1322,11 +1322,13 @@ components:
           description: |-
             The status of the data set. Can be one of the following:
 
-            - `Active` - the data set is actively maintained and updates will be published to it
-            - `Deprecated` - the data set is discontinued and updates will no longer be published to it
+            - `Published` - the data set has been published and will receive updates 
+            - `Deprecated` - the data set is being discontinued and will no receive updates
+            - `Unpublished` - the data set has been unpublished and can no longer be used
           enum:
-            - Active
+            - Published
             - Deprecated
+            - Unpublished
         latestVersion:
           $ref: '#/components/schemas/DataSetLatestVersionViewModel'
         supersedingDataSetId:
@@ -1480,6 +1482,7 @@ components:
       required:
         - number
         - type
+        - status
         - notes
         - timePeriods
         - geographicLevels
@@ -1516,7 +1519,7 @@ components:
             - `Deprecated` - the version is being deprecated and will not be usable in the future
             - `Unpublished` - the version has been unpublished and can no longer be used
           enum:
-            - Active
+            - Published
             - Deprecated
             - Unpublished
         published:

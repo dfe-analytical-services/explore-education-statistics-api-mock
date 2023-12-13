@@ -12,7 +12,7 @@ export const spcEthnicityLanguageDataSet = createDataSet({
   title: 'Pupil characteristics - Ethnicity and Language',
   summary:
     'Number of pupils in state-funded nursery, primary, secondary and special schools, non-maintained special schools and pupil referral units by language and ethnicity.',
-  status: 'Active',
+  status: 'Published',
   latestVersion: '2.0',
   publication: spcPublication,
 });
@@ -22,7 +22,7 @@ export const spcYearGroupGenderDataSet = createDataSet({
   title: 'Pupil characteristics - Year group and Gender',
   summary:
     'Number of pupils in state-funded nursery, primary, secondary and special schools, non-maintained special schools, pupil referral units and independent schools by national curriculum year and gender.',
-  status: 'Active',
+  status: 'Published',
   latestVersion: '1.0',
   publication: spcPublication,
 });
@@ -32,7 +32,7 @@ export const pupilAttendanceWeeklyDataSet = createDataSet({
   title: 'Pupil attendance since week commencing 12 September - weekly',
   summary:
     'Weekly local authority, regional and national attendance since 12 September 2022, including reasons for absence. Figures are provided for state-funded primary, secondary and special schools. Totals for all schools are also included that include estimates for non-response.',
-  status: 'Active',
+  status: 'Published',
   latestVersion: '1.0',
   publication: pupilAbsencePublication,
 });
@@ -42,7 +42,7 @@ export const leoIndustryRegionalDataSet = createDataSet({
   title: 'Industry data - regional',
   summary:
     'Graduate populations of UK domiciled graduates of English Higher Education Institutions (HEIs), Alternative Providers (APs) and Further Education Colleges (FECs), one, three, five and ten years after graduation (YAG), 2019/20 tax year',
-  status: 'Active',
+  status: 'Published',
   latestVersion: '1.0',
   publication: leoPublication,
 });
@@ -52,7 +52,7 @@ export const apprenticeshipsProvidersDetailedDataSet = createDataSet({
   title: 'Provider - latest detailed series',
   summary:
     'Breakdowns of apprenticeship starts and achievements by individual provider',
-  status: 'Active',
+  status: 'Published',
   latestVersion: '1.0',
   publication: apprenticeshipsPublication,
 });
@@ -61,7 +61,7 @@ export const benchmarkETDetailedReorderedDataSet = createDataSet({
   id: '91f449b6-0850-45ff-8e09-23d5fdc87fb5',
   title: 'ET Detailed Reordered',
   summary: '',
-  status: 'Active',
+  status: 'Published',
   latestVersion: '1.0',
   publication: benchmarkPublication,
 });
@@ -70,7 +70,7 @@ export const benchmarkQuaDataSet = createDataSet({
   id: 'a96044e5-2310-4890-a601-8ca0b67d2964',
   title: 'QUA01',
   summary: '',
-  status: 'Active',
+  status: 'Published',
   latestVersion: '1.0',
   publication: benchmarkPublication,
 });
@@ -79,7 +79,7 @@ export const benchmarkNatDataSet = createDataSet({
   id: '942ea929-05da-4e52-b77c-6cead4afb2f0',
   title: 'NAT01',
   summary: '',
-  status: 'Active',
+  status: 'Published',
   latestVersion: '1.0',
   publication: benchmarkPublication,
 });
@@ -88,7 +88,7 @@ export const benchmarkLtdDmDataSet = createDataSet({
   id: '60849ca0-055d-4144-9ec5-30c100ad2245',
   title: 'LTD DM',
   summary: '',
-  status: 'Active',
+  status: 'Published',
   latestVersion: '1.0',
   publication: benchmarkPublication,
 });

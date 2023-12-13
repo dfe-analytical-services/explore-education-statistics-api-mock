@@ -24,6 +24,7 @@ export const spcEthnicityLanguageDataSetVersions = createVersions({
     {
       number: '2.0',
       type: 'Major',
+      status: 'Published',
       notes:
         '<p>Addition of 2021/22 data and backwards incompatible changes due to deletion of some filter items and locations.</p>',
       published: '2021-04-01T12:00:00Z',
@@ -68,6 +69,7 @@ export const spcEthnicityLanguageDataSetVersions = createVersions({
     {
       number: '1.1',
       type: 'Minor',
+      status: 'Published',
       notes: `<p>Addition of 2020/21 data, minor changes to various filters and filter items, and addition of 'percent_of_pupils' indicator.</p>`,
       geographicLevels: ['National', 'Local authority', 'Regional'],
       timePeriods: {
@@ -138,6 +140,7 @@ export const spcEthnicityLanguageDataSetVersions = createVersions({
     {
       number: '1.0',
       type: 'Major',
+      status: 'Published',
       notes: '<p>Initial version</p>',
       geographicLevels: ['National', 'Local authority', 'Regional'],
       timePeriods: {
@@ -155,6 +158,7 @@ export const spcYearGroupGenderDataSetVersions = createVersions({
     {
       number: '1.0',
       type: 'Major',
+      status: 'Published',
       notes: '<p>Initial version</p>',
       geographicLevels: ['National', 'Local authority', 'Regional'],
       timePeriods: {
@@ -171,6 +175,7 @@ export const pupilAttendanceWeeklyDataSetVersions = createVersions({
     {
       number: '1.0',
       type: 'Major',
+      status: 'Published',
       notes: '<p>Initial version</p>',
       geographicLevels: ['National', 'Local authority', 'Regional'],
       timePeriods: {
@@ -187,6 +192,7 @@ export const leoIndustryRegionalDataSetVersions = createVersions({
     {
       number: '1.0',
       type: 'Major',
+      status: 'Published',
       notes: '<p>Initial version</p>',
       geographicLevels: ['Regional'],
       timePeriods: {
@@ -203,6 +209,7 @@ export const apprenticeshipsProvidersDetailedDataSetVersions = createVersions({
     {
       number: '1.0',
       type: 'Major',
+      status: 'Published',
       notes: '<p>Initial version</p>',
       geographicLevels: ['Provider'],
       timePeriods: {
@@ -219,6 +226,7 @@ export const benchmarkETDetailedReorderedDataSetVersions = createVersions({
     {
       number: '1.0',
       type: 'Major',
+      status: 'Published',
       notes: '<p>Initial version</p>',
       geographicLevels: ['National', 'Local authority', 'Regional'],
       timePeriods: {
@@ -235,6 +243,7 @@ export const benchmarkLtdDmDataSetVersions = createVersions({
     {
       number: '1.0',
       type: 'Major',
+      status: 'Published',
       notes: '<p>Initial version</p>',
       geographicLevels: ['National'],
       timePeriods: {
@@ -251,6 +260,7 @@ export const benchmarkNatDataSetVersions = createVersions({
     {
       number: '1.0',
       type: 'Major',
+      status: 'Published',
       notes: '<p>Initial version</p>',
       geographicLevels: ['National'],
       timePeriods: {
@@ -267,6 +277,7 @@ export const benchmarkQuaDataSetVersions = createVersions({
     {
       number: '1.0',
       type: 'Major',
+      status: 'Published',
       notes: '<p>Initial version</p>',
       geographicLevels: ['School'],
       timePeriods: {
