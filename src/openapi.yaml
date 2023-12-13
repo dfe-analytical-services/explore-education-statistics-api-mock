@@ -1302,7 +1302,7 @@ components:
       required:
         - id
         - title
-        - description
+        - summary
         - status
         - latestVersion
         - _links
@@ -1314,9 +1314,9 @@ components:
         title:
           type: string
           description: The title of the data set.
-        description:
+        summary:
           type: string
-          description: A description of the data set's contents.
+          description: A summary of the data set's contents.
         status:
           type: string
           description: |-
