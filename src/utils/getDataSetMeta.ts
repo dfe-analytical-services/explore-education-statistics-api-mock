@@ -4,10 +4,10 @@ import {
   FilterMetaViewModel,
   GeographicLevel,
   IndicatorMetaViewModel,
+  IndicatorUnit,
   LocationLevelMetaViewModel,
   LocationMetaViewModel,
   TimePeriodMetaViewModel,
-  Unit,
 } from '../schema';
 import {
   FilterRow,
@@ -195,7 +195,7 @@ async function getIndicatorsMeta(
       id: hasher.encode(indicator.id),
       label: indicator.label,
       name: indicator.name,
-      unit: indicator.unit as Unit,
+      unit: indicator.unit as IndicatorUnit,
       decimalPlaces: indicator.decimal_places || undefined,
     };
   });

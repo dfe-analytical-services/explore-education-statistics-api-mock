@@ -3,7 +3,7 @@ import Papa from 'papaparse';
 import { ValidationError } from '../errors';
 import {
   DataSetQuery,
-  DataSetResultsViewModel,
+  DataSetQueryResultsViewModel,
   GeographicLevel,
   PagingViewModel,
 } from '../schema';
@@ -44,7 +44,7 @@ export async function runDataSetQuery(
     page,
     pageSize,
   }: { debug?: boolean; page: number; pageSize: number },
-): Promise<Omit<DataSetResultsViewModel, '_links'>> {
+): Promise<Omit<DataSetQueryResultsViewModel, '_links'>> {
   const dataSetDir = getDataSetDir(dataSetId);
   const state = new DataSetQueryState(dataSetDir);
 
