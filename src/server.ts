@@ -22,7 +22,6 @@ import {
   ApiErrorViewModel,
   ChangeSetViewModel,
   DataSetLatestVersionViewModel,
-  DataSetVersionViewModel,
   DataSetViewModel,
   PagedDataSetsViewModel,
   PagedDataSetVersionsViewModel,
@@ -158,6 +157,7 @@ app.get('/api/v1/publications/:publicationId/data-sets', async (req, res) => {
           latestVersion: pick(latestVersion, [
             'number',
             'published',
+            'totalResults',
             'filters',
             'timePeriods',
             'geographicLevels',
@@ -212,6 +212,7 @@ app.get('/api/v1/data-sets/:dataSetId', async (req, res) => {
     latestVersion: pick(latestVersion, [
       'number',
       'published',
+      'totalResults',
       'filters',
       'timePeriods',
       'geographicLevels',

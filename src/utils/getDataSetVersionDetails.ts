@@ -15,7 +15,13 @@ export default async function getDataSetVersionDetails(
   for (const dataSet of dataSetVersions) {
     const dataSetDir = getDataSetDir(dataSetId);
 
-    const [filters, indicators] = await Promise.all([
+    const [{ totalResults }, filters, indicators] = await Promise.all([
+      db.first<{ totalResults: BigInt }>(
+        `SELECT COUNT(*) AS totalResults FROM '${tableFile(
+          dataSetDir,
+          'data',
+        )}'`,
+      ),
       db.all<{ group_label: string }>(
         `SELECT DISTINCT group_label FROM '${tableFile(
           dataSetDir,
@@ -29,6 +35,7 @@ export default async function getDataSetVersionDetails(
 
     mappedVersions.push({
       ...dataSet,
+      totalResults: Number(totalResults),
       filters: filters.map((filter) => filter.group_label),
       indicators: indicators.map((indicator) => indicator.label),
     });

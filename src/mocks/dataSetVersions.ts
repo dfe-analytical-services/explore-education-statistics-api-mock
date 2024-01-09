@@ -13,7 +13,7 @@ import {
 
 export type DataSetVersionViewModelMock = Omit<
   DataSetVersionViewModel,
-  'filters' | 'indicators'
+  'totalResults' | 'filters' | 'indicators'
 > & {
   changes?: ChangeViewModel[];
 };

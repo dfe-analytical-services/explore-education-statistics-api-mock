@@ -1341,6 +1341,7 @@ components:
       type: object
       required:
         - number
+        - totalResults
         - timePeriods
         - geographicLevels
         - filters
@@ -1354,6 +1355,9 @@ components:
           type: string
           description: When the version was published.
           format: datetime
+        totalResults:
+          type: number
+          description: The total number of results available to query in the data set.
         timePeriods:
           $ref: '#/components/schemas/TimePeriodRange'
         geographicLevels:
@@ -1484,6 +1488,7 @@ components:
         - type
         - status
         - notes
+        - totalResults
         - timePeriods
         - geographicLevels
         - filters
@@ -1533,6 +1538,9 @@ components:
         notes:
           type: string
           description: Any notes about this version and its changes.
+        totalResults:
+          type: number
+          description: The total number of results available to query in the data set.
         timePeriods:
           $ref: '#/components/schemas/TimePeriodRange'
         geographicLevels:
