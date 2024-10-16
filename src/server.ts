@@ -1,3 +1,4 @@
+import * as appInsights from 'applicationinsights';
 import bodyParser from 'body-parser';
 import compression from 'compression';
 import express, { ErrorRequestHandler } from 'express';
@@ -38,6 +39,8 @@ import parsePaginationParams from './utils/parsePaginationParams';
 import { parseQueryString } from './utils/queryStringParsers';
 import { getFullRequestUrl } from './utils/requestUtils';
 import { addHostUrlToLinks } from './utils/responseUtils';
+
+appInsights.setup();
 
 process.chdir(__dirname);
 
