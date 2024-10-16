@@ -1,3 +1,4 @@
+import * as appInsights from 'applicationinsights';
 import bodyParser from 'body-parser';
 import compression from 'compression';
 import express, { ErrorRequestHandler } from 'express';
@@ -38,6 +39,21 @@ import parsePaginationParams from './utils/parsePaginationParams';
 import { parseQueryString } from './utils/queryStringParsers';
 import { getFullRequestUrl } from './utils/requestUtils';
 import { addHostUrlToLinks } from './utils/responseUtils';
+
+if (process.env.APPLICATIONINSIGHTS_CONNECTION_STRING) {
+  appInsights
+    .setup()
+    .setAutoCollectRequests(true)
+    .setAutoCollectPerformance(true, true)
+    .setAutoCollectExceptions(true)
+    .setAutoCollectDependencies(true)
+    .setAutoCollectConsole(true, true)
+    .setAutoCollectPreAggregatedMetrics(true)
+    .setSendLiveMetrics(false)
+    .setInternalLogging(false, true)
+    .enableWebInstrumentation(false)
+    .start();
+}
 
 process.chdir(__dirname);
 
