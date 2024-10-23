@@ -1,4 +1,4 @@
-FROM node:18.18-bullseye-slim AS builder
+FROM node:20.18-bullseye-slim AS builder
 
 RUN mkdir /app
 WORKDIR /app
@@ -6,7 +6,7 @@ WORKDIR /app
 COPY . .
 RUN npm ci && npm run build
 
-FROM node:18.18-bullseye-slim
+FROM node:20.18-bullseye-slim
 
 WORKDIR /app
 
