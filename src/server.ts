@@ -8,9 +8,10 @@ import {
   BadRequest,
   NotFound,
 } from 'express-openapi-validator/dist/framework/types';
+import expressWinston from 'express-winston';
 import { omit, pick } from 'lodash';
-import morgan from 'morgan';
 import path from 'path';
+import winston from 'winston';
 import { InternalServerError, ValidationError } from './errors';
 import ApiError from './errors/ApiError';
 import NotFoundError from './errors/NotFoundError';
@@ -40,6 +41,8 @@ import { parseQueryString } from './utils/queryStringParsers';
 import { getFullRequestUrl } from './utils/requestUtils';
 import { addHostUrlToLinks } from './utils/responseUtils';
 
+const isProd = process.env.NODE_ENV === 'production';
+
 if (process.env.APPLICATIONINSIGHTS_CONNECTION_STRING) {
   appInsights
     .setup()
@@ -66,7 +69,26 @@ app.set('query parser', parseQueryString);
 
 // Middleware
 
-app.use(morgan('dev'));
+app.use(
+  expressWinston.logger({
+    transports: [new winston.transports.Console()],
+    format: isProd
+      ? winston.format.combine(
+          winston.format.timestamp(),
+          winston.format.json(),
+        )
+      : winston.format.combine(
+          winston.format.timestamp(),
+          winston.format.colorize(),
+          winston.format.simple(),
+        ),
+    meta: isProd,
+    msg: 'HTTP {{req.method}} {{req.url}}',
+    expressFormat: true,
+    colorize: !isProd,
+  }),
+);
+
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.text());
 app.use(bodyParser.json());
@@ -463,8 +485,6 @@ const errorHandler: ErrorRequestHandler<{}, ApiErrorViewModel | string> = (
       });
     }
 
-    console.error(err);
-
     return new InternalServerError();
   };
 
@@ -483,6 +503,27 @@ const errorHandler: ErrorRequestHandler<{}, ApiErrorViewModel | string> = (
   return res.send('');
 };
 
+app.use(
+  expressWinston.errorLogger({
+    transports: [new winston.transports.Console()],
+    format: isProd
+      ? winston.format.combine(
+          winston.format.timestamp(),
+          winston.format.json(),
+        )
+      : winston.format.combine(
+          winston.format.timestamp(),
+          winston.format.prettyPrint({
+            colorize: !isProd,
+          }),
+        ),
+    blacklistedMetaFields: isProd
+      ? ['os', 'process', 'trace']
+      : ['message', 'stack', 'os', 'process', 'trace'],
+    meta: isProd,
+    msg: '{{err.message}}',
+  }),
+);
 app.use(errorHandler);
 
 const port = process.env.PORT || 8080;
